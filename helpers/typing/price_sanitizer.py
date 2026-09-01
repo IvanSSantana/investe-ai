@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 
 def price_sanitizer(price_str: str) -> Decimal | None:
     """
-    Converte uma string de preço para um float, removendo símbolos de moeda e separadores.
-    Exemplo: "R$ 1.234,56" -> 1234.56
+    Converts a price string to a float, removing currency symbols and separators.
+    Example: "R$ 1.234,56" -> 1234.56
     """
     if not price_str:
         return None
@@ -23,5 +23,5 @@ def price_sanitizer(price_str: str) -> Decimal | None:
     try:
         return Decimal(price_str)
     except InvalidOperation:
-        logger.warning(f"Houve um erro durante a sanitização de um número: '{price_str}'.")
+        logger.warning(f"An error ocurred during a price sanitizing: '{price_str}'.")
         return None
