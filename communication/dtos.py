@@ -20,14 +20,16 @@ class StockResponse(BaseModel):
     segment: str | None = None
 
 class RealStateFundResponse(BaseModel):
-    ticker: str
-    price: Decimal
-    value_variation: Decimal
-    dividend_yield: Decimal
-    segment: str
-    liquidity: Decimal
-    profitability: Decimal
-    unitholders: int
-    vacancy_rate: Decimal
-    asset_value: Decimal
-    fees: Decimal
+    ticker: str | None = None
+    segment: str | None = None
+    type_fund: str | None = None
+    management_style: str | None = None
+    unitholders: Decimal | None = None
+    price: Decimal | None = None
+    value_variation_1m: Decimal | None = None
+    value_variation_1y: Decimal | None = None
+    dividend_yield: Decimal | None = None
+    liquidity: Decimal | None = None
+    vacancy_rate: Decimal | None = None
+    asset_value: Decimal | None = None
+    fees: Decimal | None = None

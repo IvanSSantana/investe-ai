@@ -15,7 +15,7 @@ def search_one_element_verifier(soup, selector: str) -> Tag:
     return element
 
 
-def search_indicator(indicator: str, soup, table_selector="#table-indicators article.indicator-card", title_selector=".indicator-card-title", value_selector=".indicator-card-value") -> str:
+def search_indicator_from_table(indicator: str, soup, childs_selector="#table-indicators article.indicator-card", title_selector=".indicator-card-title", value_selector=".indicator-card-value") -> str:
     """Busca, por conteúdo do título (contains), um indicador dentro de um conjunto
     de cards e retorna o texto do seu valor.
 
@@ -25,7 +25,7 @@ def search_indicator(indicator: str, soup, table_selector="#table-indicators art
     valor principal do indicador.
     """
 
-    cards = soup.select(table_selector)
+    cards = soup.select(childs_selector)
 
     for card in cards:
         title = card.select_one(title_selector)
@@ -40,5 +40,5 @@ def search_indicator(indicator: str, soup, table_selector="#table-indicators art
             logger.warning(f"O valor do indicador '{indicator}' não foi encontrado.")
             return ""
 
-    logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {table_selector})")
+    logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {childs_selector})")
     return ""

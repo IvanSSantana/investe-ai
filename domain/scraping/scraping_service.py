@@ -16,20 +16,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.firefox import GeckoDriverManager
 
 from communication.exceptions import ScrapingError
-from communication.dtos import StockResponse
-from domain.scraping.searching import search_one_element_verifier, search_indicator
+from communication.dtos import StockResponse, RealStateFundResponse
+from domain.scraping.searching import search_one_element_verifier, search_indicator_from_table
 from helpers.typing.price_sanitizer import price_sanitizer
 
 DriverFactory = Callable[[], WebDriver]
 logger = logging.getLogger(__name__)
 
 def default_driver_factory() -> WebDriver:
-    """Cria um WebDriver headless do Firefox.
-
-    Isolado numa função própria (e não direto no __init__) para que o
-    ScrapingService possa receber outra factory em testes -- ex.: uma que
-    devolve um driver mockado, sem precisar subir um navegador de verdade.
-    """
+    """Cria um WebDriver headless do Firefox."""
     options = Options()
     options.add_argument("--headless")
     return WebDriver(service=Service(GeckoDriverManager().install()), options=options)
@@ -41,11 +36,13 @@ class ScrapingService:
     recentes (requests).
     """
 
-    BASE_URL = "https://investidor10.com.br/acoes/{ticker}/"
+    BASE_URL = "https://investidor10.com.br/{type}/{ticker}/"
     HEADERS = {"User-Agent": "Mozilla/5.0"}
-    INDICATORS_TABLE_SELECTOR = "#table-indicators article.indicator-card"
+    STOCK_INDICATORS_TABLE_SELECTOR = "#table-indicators article.indicator-card"
+    REAL_STATE_NUMERIC_INDICATORS_TABLE_SELECTOR = "#table-indicators-history tr"
+    REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR = "#table-indicators div.cell"
 
-    INDICATOR_FIELDS: dict[str, str] = {
+    STOCK_INDICATOR_FIELDS: dict[str, str] = {
         "pl": "P/L",
         "pvp": "P/VP",
         "dividend_yield": "Dividend Yield",
@@ -59,30 +56,73 @@ class ScrapingService:
         "ebit_margin": "Margem Ebit",
     }
 
+    REAL_STATE_NUMERIC_INDICATOR_FIELDS: dict[str, str] = {
+        "dividend_yield": "Dividend Yield",
+        "liquidity": "Liquidez Diária",
+        "vacancy_rate": "Vacância",
+        "asset_value": "Valor Patrimonial",
+    }
+
+    REAL_STATE_TEXT_INDICATOR_FIELS: dict[str, str] = {
+        "segment": "SEGMENTO",
+        "type_fund": "TIPO DE FUNDO",
+        "management_style": "TIPO DE GESTÃO"
+    }
+
     def __init__(self, driver_factory: DriverFactory = default_driver_factory):
         self._driver_factory = driver_factory
 
-    def search_indicators(self, ticker: str) -> StockResponse:
+    def search_stock_indicators(self, ticker: str) -> StockResponse:
         """Coleta preço, variações (1a/1m) e indicadores fundamentalistas."""
-        url = self.BASE_URL.format(ticker=ticker)
+        url = self.BASE_URL.format(type="acoes", ticker=ticker)
         soup = self._fetch_soup(url)
+        driver = self._driver_factory()
 
         site_ticker = search_one_element_verifier(soup, ".name-ticker h1").get_text(strip=True)
         price = price_sanitizer(
             search_one_element_verifier(soup, "div._card.cotacao div._card-body div span.value").get_text(strip=True)
         )
-        segment = search_indicator("Setor", soup, "#table-indicators-company div.cell", '.title', '.value')
+        segment = search_indicator_from_table("Setor", soup, "#table-indicators-company div.cell", '.title', '.value')
 
         # TODO: Otimizar velocidade com Selenium
         return StockResponse(
             ticker=site_ticker,
             price=price,
-            value_variation_1y=self._extract_1y_variation(soup),
-            value_variation_1m=self._extract_1m_variation(url),
+            value_variation_1y=self._extract_variation(url, "1y"),
+            value_variation_1m=self._extract_variation(url, "1m"),
             segment=segment,
-            **self._extract_indicators(soup),
+            **self._extract_stock_indicators(soup),
         )
 
+    def search_real_state_fund_indicators(self, ticker: str) -> RealStateFundResponse:
+        """Search indicators from a real state fund."""
+        url = self.BASE_URL.format(type="fiis", ticker=ticker)
+        soup = self._fetch_soup(url)
+        
+        site_ticker = search_one_element_verifier(soup, "#sub-header-logo h1").get_text(strip=True)
+        price = price_sanitizer(
+            search_one_element_verifier(soup, "#cards-ticker ._card-body .value").get_text(strip=True)
+        )
+        
+        unitholders = price_sanitizer(
+            search_indicator_from_table("NUMERO DE COTISTAS", soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")
+        )
+
+        fees = price_sanitizer(
+            search_indicator_from_table("TAXA DE ADMINISTRAÇÃO", soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")[0:5]
+        )
+
+        return RealStateFundResponse(
+            ticker=site_ticker,
+            price=price,
+            value_variation_1y=self._extract_variation(url, "1y"),
+            value_variation_1m=self._extract_variation(url, "1m"),
+            unitholders=unitholders,
+            fees=fees,
+            **self._extract_real_state_text_indicators(soup), # type: ignore
+            **self._extract_real_state_numeric_indicators(url)
+        )
+    
     def search_pdfs(self, ticker: str) -> list[str]:
         """Retorna os links de PDFs de comunicados publicados no último mês."""
         url = self.BASE_URL.format(ticker=ticker)
@@ -105,44 +145,118 @@ class ScrapingService:
 
         return BeautifulSoup(response.text, "html.parser")
 
-    def _extract_indicators(self, soup: BeautifulSoup) -> dict[str, Decimal | None]:
+    def _extract_stock_indicators(self, soup: BeautifulSoup) -> dict[str, Decimal | None]:
         return {
-            field: price_sanitizer(search_indicator(label, soup, self.INDICATORS_TABLE_SELECTOR))
-            for field, label in self.INDICATOR_FIELDS.items()
+            field: price_sanitizer(search_indicator_from_table(label, soup, self.STOCK_INDICATORS_TABLE_SELECTOR))
+            for field, label in self.STOCK_INDICATOR_FIELDS.items()
         }
 
-    def _extract_1y_variation(self, soup: BeautifulSoup) -> Decimal | None:
-        variation = price_sanitizer(
-            search_one_element_verifier(soup, "div._card.pl div._card-body div span").get_text(strip=True)
-        )
-        if variation is None: return
+    def _extract_real_state_text_indicators(self, soup: BeautifulSoup) -> dict[str, str]:
+        return {
+            field: search_indicator_from_table(label, soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")
+            for field, label in self.REAL_STATE_TEXT_INDICATOR_FIELS.items()
+        }
+    
+    def _extract_real_state_numeric_indicators(self, url: str) -> dict[str, Decimal | None]:
+        """Extract current real estate fund indicators from a horizontal table"""
+        history_soup = self._fetch_history_table_soup(url)
 
-        img_variation = soup.select_one("div._card.pl div._card-body div img")
-        if img_variation and "seta-down" in (img_variation.get("src") or ""):
-            variation = -variation if variation else variation
+        return {
+            field: price_sanitizer(
+                self._extract_horizontal_indicator(
+                    soup=history_soup,
+                    indicator=label,
+                    table_selector=self.REAL_STATE_NUMERIC_INDICATORS_TABLE_SELECTOR,
+                ) # type: ignore
+            )
+            for field, label in self.REAL_STATE_NUMERIC_INDICATOR_FIELDS.items()
+        }
 
-        return variation
-
-    def _extract_1m_variation(self, url: str) -> Decimal | None:
-        """A variação de 1 mês só carrega após um clique, por isso exige Selenium."""
-        selector = (
-            '.segmented-period-bar__pills > button[data-period="30"]'
-        )
-
+    def _fetch_history_table_soup(self, url: str) -> BeautifulSoup:
+        """ Open the driver once per asset and wait for the indicator history table to load. """
         driver = self._driver_factory()
         try:
             driver.get(url)
 
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
-            driver.find_element(By.CSS_SELECTOR, selector).click()
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.REAL_STATE_NUMERIC_INDICATORS_TABLE_SELECTOR))
+            )
 
-            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".info-percentage")))
+            return BeautifulSoup(driver.page_source, "html.parser")
+
+        except Exception:
+            logger.warning(f"A tabela de histórico de indicadores não carregou a tempo. URL: {url}")
+            return BeautifulSoup("", "html.parser")
+
+        finally:
+            driver.quit()
+    
+    def _extract_horizontal_indicator(self, soup: BeautifulSoup, indicator: str, table_selector: str) -> str | None:
+        """Extract the current value of an indicator from a horizontal table."""
+        rows = soup.select(table_selector)
+        
+        logger.debug(rows)
+        for row in rows:
+            indicator_element = row.select_one("td.indicator")
+            if not indicator_element:
+                continue
+
+            logger.debug(f"Indicador elemento: {indicator_element}")
+            indicator_name = indicator_element.get_text(" ", strip=True)
+
+            if indicator_name != indicator:
+                continue
+
+            logger.debug(f"Indicador: {indicator_name}")
+            values = row.select("td.value")
+
+            if not values:
+                return None
+
+            logger.debug(f"Primeiro valor: {values[0]}")
+            return values[0].get_text(" ", strip=True)
+
+        logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {table_selector})")
+        return None
+
+    def _extract_variation(self, url: str, period: str) -> Decimal | None:
+        """Extract the percentage of variation of price of an indicator.
+        
+        Args:
+            url (str): Url from website will be scraped.
+            period (str): Only accepts "1m" or "1y", corresponding a 1 month or a 1 year variation.
+        """
+        types = {
+            "1m": 30,
+            "1y": 365,
+        }
+
+        selector = (
+            f'.segmented-period-bar__pills button[data-period="{types[period]}"]'
+        )
+
+        driver = self._driver_factory()
+
+        try:
+            driver.get(url)
+
+            wait = WebDriverWait(driver, 20)
+
+            button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+
+            previous_text = driver.find_element(By.CSS_SELECTOR, "span.info-percentage").text
+
+            button.click()
+            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, selector)))
+
             variation_text = driver.find_element(By.CSS_SELECTOR, "span.info-percentage").text
 
             return price_sanitizer(variation_text)
-        except Exception as error:
-            logger.warning(f"O botão para definir o período de variação para 30 dias não foi encontrado. Seletor: {selector}")
+
+        except Exception:
+            logger.exception(f"Erro ao extrair variação de {types[period]} dias. URL: {url}")
             return None
+
         finally:
             driver.quit()
 
@@ -159,5 +273,6 @@ class ScrapingService:
 
 if __name__ == "__main__":
     service = ScrapingService()
-    indicadores = service.search_indicators('PETR4')
-    print(indicadores.model_dump_json(indent=4))
+    # indicadores = service.search_stock_indicators('PETR4')
+    indicators = service.search_real_state_fund_indicators('GARE11')
+    print(indicators.model_dump_json(indent=4))
