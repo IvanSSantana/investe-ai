@@ -50,7 +50,6 @@ class VectorstoreService:
         self._db_path = db_path
 
     def build_vectorstore(self) -> ChromaDb:
-        """Create (or open) ChromaDB local."""
         logger.info("Building vectorstore with ChromaDB...")
 
         Path(self._db_path).mkdir(parents=True, exist_ok=True)
@@ -81,8 +80,7 @@ class VectorstoreService:
         return knowledge
 
     def extract_events_from_section(self, section: str, knowledge_db: Knowledge) -> list[dict]:
-        """
-        The extraction agent runs on a section of the document. The agent decides
+        """The extraction agent runs on a section of the document. The agent decides
         on its own (agentic RAG) whether it needs to consult the indexed
         knowledge to supplement incomplete context.
         """
@@ -98,9 +96,9 @@ class VectorstoreService:
         )
 
         response = agent.run(section)
-        eventos = response.content.eventos # type: ignore
+        events = response.content.eventos # type: ignore
 
-        return [evento.model_dump() for evento in eventos]
+        return [event.model_dump() for event in events]
 
 if __name__ == "__main__":
     service = VectorstoreService()

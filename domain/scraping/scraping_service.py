@@ -24,16 +24,15 @@ DriverFactory = Callable[[], WebDriver]
 logger = logging.getLogger(__name__)
 
 def default_driver_factory() -> WebDriver:
-    """Cria um WebDriver headless do Firefox."""
+    """Create a Firefox's headless WebDriver."""
     options = Options()
     options.add_argument("--headless")
     return WebDriver(service=Service(GeckoDriverManager().install()), options=options)
 
 
 class ScrapingService:
-    """Coleta dados do investidor10.com para um ativo: indicadores
-    fundamentalistas (requests + Selenium) e links de PDFs de comunicados
-    recentes (requests).
+    """Data collection from investor10.com for an asset: fundamental indicators
+    (requests + Selenium) and links to PDFs of recent announcements (requests).
     """
 
     BASE_URL = "https://investidor10.com.br/{type}/{ticker}/"
@@ -73,7 +72,6 @@ class ScrapingService:
         self._driver_factory = driver_factory
 
     def search_stock_indicators(self, ticker: str) -> StockResponse:
-        """Coleta preço, variações (1a/1m) e indicadores fundamentalistas."""
         url = self.BASE_URL.format(type="acoes", ticker=ticker)
         soup = self._fetch_soup(url)
         driver = self._driver_factory()
@@ -84,18 +82,17 @@ class ScrapingService:
         )
         segment = search_indicator_from_table("Setor", soup, "#table-indicators-company div.cell", '.title', '.value')
 
-        # TODO: Otimizar velocidade com Selenium
+        # TODO: Optimize speed with Selenium
         return StockResponse(
             ticker=site_ticker,
             price=price,
-            value_variation_1y=self._extract_variation(url, "1y"),
-            value_variation_1m=self._extract_variation(url, "1m"),
+            value_variation_1y=self._extract_price_variation(url, "1y"),
+            value_variation_1m=self._extract_price_variation(url, "1m"),
             segment=segment,
             **self._extract_stock_indicators(soup),
         )
 
     def search_real_state_fund_indicators(self, ticker: str) -> RealStateFundResponse:
-        """Search indicators from a real state fund."""
         url = self.BASE_URL.format(type="fiis", ticker=ticker)
         soup = self._fetch_soup(url)
         
@@ -115,8 +112,8 @@ class ScrapingService:
         return RealStateFundResponse(
             ticker=site_ticker,
             price=price,
-            value_variation_1y=self._extract_variation(url, "1y"),
-            value_variation_1m=self._extract_variation(url, "1m"),
+            value_variation_1y=self._extract_price_variation(url, "1y"),
+            value_variation_1m=self._extract_price_variation(url, "1m"),
             unitholders=unitholders,
             fees=fees,
             **self._extract_real_state_text_indicators(soup), # type: ignore
@@ -124,7 +121,7 @@ class ScrapingService:
         )
     
     def search_pdfs(self, ticker: str) -> list[str]:
-        """Retorna os links de PDFs de comunicados publicados no último mês."""
+        """Returns PDFs links from announcements published in the last month."""
         url = self.BASE_URL.format(ticker=ticker)
         soup = self._fetch_soup(url)
 
@@ -173,7 +170,7 @@ class ScrapingService:
         }
 
     def _fetch_history_table_soup(self, url: str) -> BeautifulSoup:
-        """ Open the driver once per asset and wait for the indicator history table to load. """
+        """Open the driver once per asset and wait for the indicator history table to load."""
         driver = self._driver_factory()
         try:
             driver.get(url)
@@ -219,7 +216,7 @@ class ScrapingService:
         logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {table_selector})")
         return None
 
-    def _extract_variation(self, url: str, period: str) -> Decimal | None:
+    def _extract_price_variation(self, url: str, period: str) -> Decimal | None:
         """Extract the percentage of variation of price of an indicator.
         
         Args:
@@ -261,7 +258,7 @@ class ScrapingService:
             driver.quit()
 
     def _extract_recent_pdf_link(self, card) -> str | None:
-        """Retorna o link do PDF do card, ou None se tiver mais de 30 dias."""
+        """Returns the link to the card's PDF, or None if it is older than 30 days."""
         date_element = card.select_one("div.card-date span.card-date--content")
         if date_element:
             report_date = datetime.strptime(date_element.get_text(strip=True), "%d/%m/%Y")
