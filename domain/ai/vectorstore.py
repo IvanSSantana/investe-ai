@@ -18,19 +18,37 @@ class EventResponse(BaseModel):
     descricao: str = Field(..., description="Descricao do evento corporativo extraido do documento.")
     impacto: str = Field(..., description="Impacto do evento corporativo no preco da acao da empresa.")
     importancia: int = Field(..., ge=1, le=10, description="1 = Altíssimo impacto econômico, 10 = Impacto praticamente nulo.")
+    categoria: str = Field(..., description="Categoria do evento (entre as 10 fornecidas)")
 
 class EventListResponse(BaseModel):
     eventos: list[EventResponse]
 
+FII_MANAGEMENT_REPORT_CATEGORIES = [
+    "Distribuição de rendimentos e dividend yield do mês",
+    "Resultado financeiro e contábil do período (receita, lucro, FFO)",
+    "Carteira de ativos: aquisições, vendas e composição atual",
+    "Vacância física e financeira, e negociações de locação/renovação",
+    "Inadimplência e revisão de contratos com locatários",
+    "Endividamento, alavancagem e custo de dívida do fundo",
+    "Captação de recursos, emissão de cotas e ofertas públicas",
+    "Valor patrimonial da cota e valorização/desvalorização de mercado",
+    "Eventos societários e de gestão (troca de gestor, taxa de administração, assembleias com decisão relevante)",
+    "Riscos jurídicos, regulatórios ou contratuais em aberto",
+]
+
+CATEGORIES_STR = "CATEGORIAS:\n"
+for category in FII_MANAGEMENT_REPORT_CATEGORIES:
+    CATEGORIES_STR += f"- {category}\n"
+
 class VectorstoreService:
     """Manages the vector index (ChromaDB) used in agentic RAG extraction:
     builds the DB, inserts documents (fine-grained chunks via SemanticChunking), and
-    runs the event extraction agent with OPTIONAL search against the indexed
-    knowledge — the agent decides for itself whether and when to search.
+    runs the event extraction agent.
     """
 
+    # NOTE: Problem with importancy. It's necessary to specify criteria for rate importance.
     EXTRACTION_INSTRUCTIONS = [
-        "Extrair ATÉ 7 eventos corporativos mais relevantes e impactantes do relatório gerencial, priorizando eventos que realmente possam afetar a percepção do investidor, os resultados da empresa ou o valor do ativo.",
+        "Extrair ATÉ 10 eventos corporativos mais relevantes e impactantes do relatório gerencial, priorizando eventos que realmente possam afetar a percepção do investidor, os resultados da empresa ou o valor do ativo.",
         "Ignore nomes de pessoas, incluindo cargos e eleições.",
         "Preserve todos os valores numéricos, percentuais, datas, indicadores e quantias monetárias.",
         "Foque somente em movimentos, decisões, resultados e mudancas da empresa.",
@@ -40,10 +58,13 @@ class VectorstoreService:
         "Ignore eventos burocráticos, societários, administrativos como assembléias, reuniões, eleições, comitês, comunicados protocolares etc. ou voltados ao público como Investor Day, a menos que o texto explicite uma consequência econômica objetiva e material.",
         "NUNCA crie ou invente dados, acontecimentos.",
         "Indique nos impactos como os eventos impactaram direta ou indiretamente o preço do ativo. Ex: 'Indica saúde financeira, provável ascenção de preço.'.",
-        "Classifique a importância de cada evento numa escala de 1 a 10, onde 1 = altíssimo impacto econômico e 10 = impacto praticamente nulo. Todos os eventos de uma mesma seção devem ter importancias diferentes entre si.",
+        "Classifique a importância de cada evento numa escala de 1 a 10, onde 1 = altíssimo impacto econômico e 10 = impacto praticamente nulo. Todos os eventos de uma mesmo relatório devem ter importancias diferentes entre si.",
         "Se a seção referenciar algo que parece incompleto, cortado, ou remeter a outra parte do documento (ex.: 'conforme mencionado', 'ver nota X', um valor sem sua base de comparacao), use a busca no conhecimento para complementar antes de finalizar a extração.",
         "Especifique dados concretos como nomes de empresas parceiras, nomes de produtos lançados, nomes de imóveis comprados etc. na descrição do evento.",
         "SEMPRE retorne SOMENTE JSON válido.",
+        "SEMPRE defina o campo 'categoria' com algum elemento da lista a seguir:",
+        CATEGORIES_STR,
+        "SEMPRE priorize 1 evento de cada categoria, isto é, evite repetir eventos de uma mesma categoria, a menos que não haja suficientes ou adequados."
     ]
 
     def __init__(self, db_path: str = "./rag_db"):
@@ -107,10 +128,10 @@ if __name__ == "__main__":
     pdf_path = "Relatório Gerencial MXRF11.pdf"
 
     knowledge = service.insert_to_db(vector_db=db, file_path=pdf_path)
-
-    eventos = service.extract_events_from_section(
-        section="Quais são os eventos corporativos mais relevantes e impactantes para o fundo? Indique os impactos diretos ao preço do ativo.",
+    
+    events = service.extract_events_from_section(
+        section=f"Quais sao os eventos mais relevantes e impactantes para o fundo MXRF11? Indique os impactos diretos ao preco da acao. Busque os eventos mais relevantes com base em cada categoria a seguir: {CATEGORIES_STR}.",
         knowledge_db=knowledge,
     )
     import json
-    print(json.dumps(eventos, ensure_ascii=False, indent=4))
+    print(json.dumps(events, ensure_ascii=False, indent=4))
