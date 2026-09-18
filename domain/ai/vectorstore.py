@@ -70,13 +70,13 @@ class VectorstoreService:
     def __init__(self, db_path: str = "./rag_db"):
         self._db_path = db_path
 
-    def build_vectorstore(self) -> ChromaDb:
+    def build_vectorstore(self, ticker: str) -> ChromaDb:
         logger.info("Building vectorstore with ChromaDB...")
 
         Path(self._db_path).mkdir(parents=True, exist_ok=True)
 
         return ChromaDb (
-            collection="stocks_collection",
+            collection=f"fii_{ticker.lower()}",
             name="stocks_db",
             path=self._db_path,
             search_type=SearchType.hybrid,
@@ -87,24 +87,30 @@ class VectorstoreService:
             persistent_client=True,
         )
 
-    def insert_to_db(self, vector_db: ChromaDb, file_path: str) -> Knowledge:
+    def get_or_create_knowledge(self, vector_db: ChromaDb, ticker: str) -> Knowledge:
+        """Create the knowledge base shared by all documents for a fund."""
+        return Knowledge(
+            name=f"fii_{ticker.lower()}",
+            vector_db=vector_db,
+            max_results=30,
+        )
+
+    def insert_to_db(self, knowledge: Knowledge, file_path: str) -> None:
         """Indexes a PDF in the vectorstore in granular chunks."""
         logger.info(f"Inserting file {file_path} into vectorstore...")
 
-        knowledge = Knowledge(name=file_path, vector_db=vector_db, max_results=25)
-
-        # TODO: Change Reader to Docling
-        reader = PDFReader(chunking_strategy=SemanticChunking(chunk_size=1000, embedder=vector_db.embedder))
+        reader = PDFReader(
+            chunking_strategy=SemanticChunking(
+                chunk_size=1000,
+                embedder=knowledge.vector_db.embedder, # type: ignore
+            )
+        )
         knowledge.insert(path=file_path, reader=reader, skip_if_exists=True, name=file_path)
 
         logger.info("File inserted successfully.")
-        return knowledge
 
-    def extract_events_from_section(self, section: str, knowledge_db: Knowledge) -> list[dict]:
-        """The extraction agent runs on a section of the document. The agent decides
-        on its own (agentic RAG) whether it needs to consult the indexed
-        knowledge to supplement incomplete context.
-        """
+    def extract_events_from_document(self, doc_content: str, knowledge_db: Knowledge) -> list[dict]:
+        """The extraction agent runs on a entire document."""
         agent = Agent(
             role="Extrator de eventos corporativos",
             knowledge=knowledge_db,
@@ -116,21 +122,22 @@ class VectorstoreService:
             debug_level=2
         )
 
-        response = agent.run(section)
+        response = agent.run(doc_content)   
         events = response.content.eventos # type: ignore
 
         return [event.model_dump() for event in events]
 
 if __name__ == "__main__":
     service = VectorstoreService()
-    db = service.build_vectorstore()
+    db = service.build_vectorstore("MXRF11")
 
     pdf_path = "Relatório Gerencial MXRF11.pdf"
 
-    knowledge = service.insert_to_db(vector_db=db, file_path=pdf_path)
+    knowledge = service.get_or_create_knowledge(vector_db=db, ticker="MXRF11")
+    service.insert_to_db(knowledge=knowledge, file_path=pdf_path)
     
-    events = service.extract_events_from_section(
-        section=f"Quais sao os eventos mais relevantes e impactantes para o fundo MXRF11? Indique os impactos diretos ao preco da acao. Busque os eventos mais relevantes com base em cada categoria a seguir: {CATEGORIES_STR}.",
+    events = service.extract_events_from_document(
+        doc_content=f"Quais sao os eventos mais relevantes e impactantes para o fundo MXRF11? Indique os impactos diretos ao preco da acao. Busque os eventos mais relevantes com base em cada categoria a seguir: {CATEGORIES_STR}.",
         knowledge_db=knowledge,
     )
     import json

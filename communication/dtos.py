@@ -29,6 +29,7 @@ class RealStateFundResponse(BaseModel):
     value_variation_1m: Decimal | None = None
     value_variation_1y: Decimal | None = None
     dividend_yield: Decimal | None = None
+    dividend_yield_segment_average: Decimal | None = None
     liquidity: Decimal | None = None
     vacancy_rate: Decimal | None = None
     asset_value: Decimal | None = None
