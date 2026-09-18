@@ -222,3 +222,5 @@ __marimo__/
 .vscode/
 env.py
 __init__.py
+pdf_cache/
+reports_db/

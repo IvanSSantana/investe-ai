@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Callable
 import logging
 
@@ -23,6 +23,7 @@ from helpers.typing.price_sanitizer import price_sanitizer
 DriverFactory = Callable[[], WebDriver]
 logger = logging.getLogger(__name__)
 
+
 def default_driver_factory() -> WebDriver:
     """Create a Firefox's headless WebDriver."""
     options = Options()
@@ -40,6 +41,7 @@ class ScrapingService:
     STOCK_INDICATORS_TABLE_SELECTOR = "#table-indicators article.indicator-card"
     REAL_STATE_NUMERIC_INDICATORS_TABLE_SELECTOR = "#table-indicators-history tr"
     REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR = "#table-indicators div.cell"
+    REAL_STATE_MEDIA_SECTOR_SELECTOR = "#table-indicators.do-media-sector div.cell"
 
     STOCK_INDICATOR_FIELDS: dict[str, str] = {
         "pl": "P/L",
@@ -95,12 +97,12 @@ class ScrapingService:
     def search_real_state_fund_indicators(self, ticker: str) -> RealStateFundResponse:
         url = self.BASE_URL.format(type="fiis", ticker=ticker)
         soup = self._fetch_soup(url)
-        
+
         site_ticker = search_one_element_verifier(soup, "#sub-header-logo h1").get_text(strip=True)
         price = price_sanitizer(
             search_one_element_verifier(soup, "#cards-ticker ._card-body .value").get_text(strip=True)
         )
-        
+
         unitholders = price_sanitizer(
             search_indicator_from_table("NUMERO DE COTISTAS", soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")
         )
@@ -116,10 +118,11 @@ class ScrapingService:
             value_variation_1m=self._extract_price_variation(url, "1m"),
             unitholders=unitholders,
             fees=fees,
+            dividend_yield_segment_average=self._extract_segment_average_dividend_yield(soup),
             **self._extract_real_state_text_indicators(soup), # type: ignore
             **self._extract_real_state_numeric_indicators(url)
         )
-    
+
     def search_pdfs(self, ticker: str) -> list[str]:
         """Returns PDFs links from announcements published in the last month."""
         url = self.BASE_URL.format(ticker=ticker)
@@ -153,7 +156,7 @@ class ScrapingService:
             field: search_indicator_from_table(label, soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")
             for field, label in self.REAL_STATE_TEXT_INDICATOR_FIELS.items()
         }
-    
+
     def _extract_real_state_numeric_indicators(self, url: str) -> dict[str, Decimal | None]:
         """Extract current real estate fund indicators from a horizontal table"""
         history_soup = self._fetch_history_table_soup(url)
@@ -168,6 +171,33 @@ class ScrapingService:
             )
             for field, label in self.REAL_STATE_NUMERIC_INDICATOR_FIELDS.items()
         }
+
+    def _extract_segment_average_dividend_yield(self, soup: BeautifulSoup) -> Decimal | None:
+        cells = soup.select(self.REAL_STATE_MEDIA_SECTOR_SELECTOR)
+
+        for cell in cells:
+            primary_label = cell.select_one(".compare-progress-bar.primary .compare-value")
+            if not primary_label:
+                continue
+
+            if "DY" not in primary_label.get_text(" ", strip=True):
+                continue
+
+            secondary_bar = cell.select_one(".compare-progress-bar.secondary")
+            raw_value = secondary_bar.get("value") if secondary_bar else None
+
+            if raw_value is None:
+                logger.warning("DY comparison bar found, but missing 'value' attribute.")
+                return None
+
+            try:
+                return Decimal(str(raw_value))
+            except InvalidOperation:
+                logger.warning(f"Invalid DY comparison value: {raw_value!r}")
+                return None
+
+        logger.warning("Section 'Média do Tipo e Segmento' not found or missing DY indicator.")
+        return None
 
     def _fetch_history_table_soup(self, url: str) -> BeautifulSoup:
         """Open the driver once per asset and wait for the indicator history table to load."""
@@ -187,11 +217,11 @@ class ScrapingService:
 
         finally:
             driver.quit()
-    
+
     def _extract_horizontal_indicator(self, soup: BeautifulSoup, indicator: str, table_selector: str) -> str | None:
         """Extract the current value of an indicator from a horizontal table."""
         rows = soup.select(table_selector)
-        
+
         logger.debug(rows)
         for row in rows:
             indicator_element = row.select_one("td.indicator")
@@ -218,7 +248,7 @@ class ScrapingService:
 
     def _extract_price_variation(self, url: str, period: str) -> Decimal | None:
         """Extract the percentage of variation of price of an indicator.
-        
+
         Args:
             url (str): Url from website will be scraped.
             period (str): Only accepts "1m" or "1y", corresponding a 1 month or a 1 year variation.
@@ -258,6 +288,7 @@ class ScrapingService:
             driver.quit()
 
     def _extract_recent_pdf_link(self, card) -> str | None:
+        # TODO: Filter for FII's management reports by contains 'Relatório Gerencial' probably
         """Returns the link to the card's PDF, or None if it is older than 30 days."""
         date_element = card.select_one("div.card-date span.card-date--content")
         if date_element:
