@@ -7,13 +7,14 @@ import logging
 
 import requests
 from bs4 import BeautifulSoup
+import google_colab_selenium as gs 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.firefox.webdriver import WebDriver
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.options import Options
 
 from communication.exceptions import ScrapingError
 from communication.dtos import StockResponse, RealStateFundResponse
@@ -23,13 +24,11 @@ from helpers.typing.price_sanitizer import price_sanitizer
 DriverFactory = Callable[[], WebDriver]
 logger = logging.getLogger(__name__)
 
-
 def default_driver_factory() -> WebDriver:
-    """Create a Firefox's headless WebDriver."""
+    """Create a Chrome headless WebDriver for Google Colab environment."""
     options = Options()
     options.add_argument("--headless")
-    return WebDriver(service=Service(GeckoDriverManager().install()), options=options)
-
+    return gs.Chrome(options=options)
 
 class ScrapingService:
     """Data collection from investor10.com for an asset: fundamental indicators
