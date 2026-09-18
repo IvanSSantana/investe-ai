@@ -29,7 +29,7 @@ def local_query(
 
     local_agent = Agent(
         model=Ollama(
-            id="qwen2.5:7b",
+            id="qwen3:8b",
             options={
                 "temperature": temperature,
                 "num_predict": max_tokens

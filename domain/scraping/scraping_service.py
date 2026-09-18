@@ -123,9 +123,14 @@ class ScrapingService:
             **self._extract_real_state_numeric_indicators(url)
         )
 
-    def search_pdfs(self, ticker: str) -> list[str]:
-        """Returns PDFs links from announcements published in the last month."""
-        url = self.BASE_URL.format(ticker=ticker)
+    def search_pdfs(self, ticker: str, asset_type: str) -> list[str]:
+        """Returns PDFs links from announcements published in the last month.
+
+        Args:
+        ticker: ticker from asset
+        asset_type: only accepts "acoes" ou "fiis".
+        """
+        url = self.BASE_URL.format(type=asset_type, ticker=ticker)
         soup = self._fetch_soup(url)
 
         pdfs_area = search_one_element_verifier(soup, "section#communications-section div.content div.row")
