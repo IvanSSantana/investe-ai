@@ -23,7 +23,8 @@ class GenerateReportFiiUseCase:
         self._report_registry = report_registry
 
     def execute(self, ticker: str) -> Path | None:
-        pdf_urls = self._scraping_service.search_pdfs(ticker, asset_type="fiis")
+        # For debugging while filter by 'Relatório Gerencial' has not yet been implemented
+        pdf_urls = [self._scraping_service.search_pdfs(ticker, asset_type="fiis")[1]]
 
         if not pdf_urls:
             logger.warning(f"No recent announcements found for {ticker} — no report will be generated.")
