@@ -115,6 +115,7 @@ class VectorstoreService:
             role="Extrator de eventos corporativos",
             knowledge=knowledge_db,
             search_knowledge=True, 
+            add_knowledge_to_context=True,
             instructions=self.EXTRACTION_INSTRUCTIONS,
             model=Ollama(id="qwen3:8b", options={"temperature": 0.04}),
             output_schema=EventListResponse,

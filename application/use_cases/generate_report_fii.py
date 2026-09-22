@@ -32,6 +32,7 @@ class GenerateReportFiiUseCase:
 
         cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
         if cached_report is not None:
+            logger.warning(f"Report for {ticker} is up-to-date. Returning cached report at {cached_report}.")
             return cached_report
 
         return self._generate_new_report(ticker, pdf_urls)
