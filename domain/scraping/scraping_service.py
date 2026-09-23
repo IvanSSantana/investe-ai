@@ -292,11 +292,17 @@ class ScrapingService:
             driver.quit()
 
     def _extract_recent_pdf_link(self, card) -> str | None:
-        # TODO: Filter for FII's management reports by contains 'Relatório Gerencial' probably
+        # NOTE: Only working for FIIs due to the presence of "Relatório Gerencial" filter.
         """Returns the link to the card's PDF, or None if it is older than 30 days."""
         date_element = card.select_one("div.card-date span.card-date--content")
+
+        content_element = card.select_one("p.communication-card--content")
+        if "Relatório Gerencial" not in content_element.get_text(strip=True):
+            return None
+
         if date_element:
             report_date = datetime.strptime(date_element.get_text(strip=True), "%d/%m/%Y")
+            
             if report_date < datetime.now() - timedelta(days=30):
                 return None
 
@@ -306,5 +312,7 @@ class ScrapingService:
 if __name__ == "__main__":
     service = ScrapingService()
     # indicadores = service.search_stock_indicators('PETR4')
-    indicators = service.search_real_state_fund_indicators('GARE11')
-    print(indicators.model_dump_json(indent=4))
+    # indicators = service.search_real_state_fund_indicators('GARE11')
+    pdf_links = service.search_pdfs('GARE11', 'fiis')
+
+    print(pdf_links)
