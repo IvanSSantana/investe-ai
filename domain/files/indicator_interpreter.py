@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from communication.dtos import RealStateFundResponse
+from helpers.typing.number_formatter import number_formatter
 
 VACANCY_HIGH = Decimal("10")          
 LIQUIDITY_LOW = Decimal("750000")    
@@ -64,5 +65,5 @@ def _interpret_asset_value(value: Decimal | None) -> str:
     if value is None:
         return "Dado não disponível."
     if value < ASSET_VALUE_LOW:
-        return f"Abaixo de R$ {ASSET_VALUE_LOW:,.2f} — valor patrimonial baixo; pode indicar risco ou oportunidade de investimento."
-    return f"Acima de R$ {ASSET_VALUE_LOW:,.2f} — valor patrimonial considerado razoável para o setor."
+        return f"Abaixo de R$ {number_formatter(ASSET_VALUE_LOW)} — valor patrimonial baixo; pode indicar risco ou oportunidade de investimento."
+    return f"Acima de R$ {number_formatter(ASSET_VALUE_LOW)} — valor patrimonial considerado razoável para o setor."
