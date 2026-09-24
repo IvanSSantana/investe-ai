@@ -15,7 +15,7 @@
 | Dividend Yield | {{DIVIDEND_YIELD}}% | {{DIVIDEND_YIELD_INTERPRETACAO}} |
 | Vacância | {{VACANCIA}}% | {{VACANCIA_INTERPRETACAO}} |
 | Liquidez diária | R$ {{LIQUIDEZ}} | {{LIQUIDEZ_INTERPRETACAO}} |
-| Valor patrimonial (total do fundo) | R$ {{VALOR_PATRIMONIAL}} | — |
+| Valor patrimonial (total do fundo) | R$ {{VALOR_PATRIMONIAL}} | {{VALOR_PATRIMONIAL_INTERPRETACAO}} |
 | Taxa de administração | {{TAXA}}% ao ano | {{TAXA_INTERPRETACAO}} |
 | Número de cotistas | {{COTISTAS}} | — |
 
