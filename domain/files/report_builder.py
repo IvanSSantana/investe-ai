@@ -6,6 +6,8 @@ from typing import Any
 from communication.dtos import RealStateFundResponse
 from domain.files.indicator_interpreter import interpret_indicators
 
+from helpers.typing.number_formatter import number_formatter
+
 DEFAULT_TEMPLATE_PATH = Path(__file__).parent / "templates" / "report_fii.md"
 REPORTS_ROOT = Path("reports_db")
 
@@ -46,13 +48,13 @@ def _build_placeholders(
         "VARIACAO_1M": _stringify(fund.value_variation_1m),
         "VARIACAO_1Y": _stringify(fund.value_variation_1y),
         "DIVIDEND_YIELD": _stringify(fund.dividend_yield),
-        "LIQUIDEZ": _format_currency(fund.liquidity),
+        "LIQUIDEZ": number_formatter(fund.liquidity),
         "VACANCIA": _stringify(fund.vacancy_rate),
-        "VALOR_PATRIMONIAL": _format_currency(fund.asset_value),
+        "VALOR_PATRIMONIAL": number_formatter(fund.asset_value),
         "SEGMENTO": _stringify(fund.segment),
         "TIPO_FUNDO": _stringify(fund.type_fund),
         "TIPO_GESTAO": _stringify(fund.management_style),
-        "COTISTAS": _stringify(fund.unitholders),
+        "COTISTAS": number_formatter(fund.unitholders),
         "TAXA": _stringify(fund.fees),
         **interpret_indicators(fund),
         "EVENTOS": _format_events_to_markdown(events),
