@@ -1,104 +1,37 @@
-# Investe Aí
+# Investe Aí - Automação de Análise de Fundos Imobiliários (FIIs)
 
-Projeto de **scraping, processamento de PDFs e análise de eventos financeiros com IA**, desenvolvido para identificar informações relevantes em relatórios gerenciais e comunicados de fundos imobiliários e ações da bolsa de valores brasileira (B3).
+O **Investe Aí** é uma API REST desenvolvida em Python com o framework **FastAPI**, projetada para automatizar a coleta de dados, extração de indicadores fundamentalistas e sumarização de relatórios gerenciais de Fundos de Investimento Imobiliário (FIIs) com envio automatizado via e-mail.
 
-O projeto utiliza **RAG (Retrieval-Augmented Generation)** para fornecer ao modelo de IA informações extraídas dos documentos antes da análise, com uma abordagem **agentic**: o próprio agente decide quando consultar a base de conhecimento, em vez de a busca ser sempre forçada antes de cada resposta.
+O projeto utiliza modelos **Ollama** combinado com técnicas de RAG (*Retrieval-Augmented Generation*) sobre os arquivos PDF dos relatórios gerenciais, sendo projetado para execução no **Google Colab** ou em ambientes locais.
 
-## Tecnologias
+---
 
-* Python
-* Selenium / BeautifulSoup (scraping)
-* Docling (leitura e estruturação de PDFs) — chunking já integrado; leitura do PDF em si ainda não
-* Agno (agentes de IA)
-* ChromaDB (banco vetorial)
-* Ollama — modelos locais: `qwen3:8b` (extração de eventos) e `qwen2.5:7b` (chamadas simples)
-* `nomic-embed-text` (embedding, via Ollama)
-* Semantic Chunking / Hybrid Chunking
-* Pydantic
+## 🏛️ Estrutura do Projeto e Arquitetura
 
-## Arquitetura pretendida
-
-O fluxo que o projeto foi desenhado para ter, de ponta a ponta:
+A estrutura de arquivos do projeto reflete a separação em camadas de aplicação, domínio, comunicação e infraestrutura:
 
 ```text
-Site (investidor10.com)
-  ↓
-Scraping dos indicadores e dos links de comunicados       (implementado)
-  ↓
-Download dos PDFs
-  ↓
-Leitura do documento (Docling)                            (não implementado)
-  ↓
-Divisão por seção (chunking grosso)                       (configurado, função não escrita)
-  │
-  ├─→ Chunks finos + embeddings ──→ ChromaDB               (implementado)
-  │
-  Para cada seção: ────────────────┘
-  ↓
-Agente de IA extrai os eventos da seção                    (implementado, função isolada)
-  │
-  ├─→ Contexto da seção suficiente: extrai direto
-  └─→ Contexto insuficiente: busca complementar no ChromaDB (agentic RAG)
-  ↓
-Eventos corporativos filtrados por relevância               (não implementado)
-  ↓
-Geração da conclusão e do relatório final (Markdown)         (não implementado)
-```
-
-O agente analisa o conteúdo de uma seção do documento e identifica os eventos mais relevantes para o ativo, considerando fatores que podem impactar diretamente o preço. A busca no banco vetorial é pensada como complemento pontual (quando a seção referencia algo incompleto ou remete a outra parte do documento), não como único mecanismo de busca.
-
-## RAG
-
-Os documentos são indexados no **ChromaDB** em chunks semânticos finos (`SemanticChunking`), com embeddings gerados via `nomic-embed-text` (Ollama, 768 dimensões) — 100% local, sem dependência de API de embedding externa.
-
-A busca é feita de forma **agentic RAG**: o agente extrator recebe a ferramenta de busca no ChromaDB (`search_knowledge=True`), mas decide por conta própria se e quando consultá-la — a busca não é forçada antes de cada resposta, como seria num RAG comum.
-
-O plano é combinar isso com **chunking grosso por seção** (via `HybridChunker`, respeitando a estrutura extraída pelo Docling) para a extração exaustiva de eventos — um chunk por seção, evitando tanto perder eventos quanto estourar o contexto do modelo com o documento inteiro de uma vez. Essa integração ainda não está montada (ver Status).
-
-## Estrutura
-
-```text
-.
-├── domain/
-│   ├── ai/                # ai_client.py, chunking.py, vectorstore.py
-│   ├── scraping/           # scraping_service.py, searching.py
-│   └── files/               # (vazio — leitura de PDF ainda não implementada)
+investe-ai/
+├── api/
+│   ├── main.py                          # Ponto de entrada e inicialização da API FastAPI
+│   └── routers/
+│       └── fii.py                       # Rotas e endpoints REST para operações com FIIs
+├── application/
+│   └── use_cases/
+│       ├── generate_report_fii.py       # Caso de uso: Orquestração e geração do relatório completo
+│       └── get_indicators_fii.py        # Caso de uso: Coleta e estruturação de indicadores
 ├── communication/
-│   ├── dtos.py
-│   └── exceptions.py
-├── helpers/
-│   └── typing/              # price_sanitizer.py
-├── api/                      # (vazio)
-├── application/              # (vazio)
-├── repository/                # (vazio)
-├── tests/                      # (vazio)
-└── README.md
-```
-
-> A estrutura pode variar conforme a evolução do projeto.
-
-## Rodar o projeto
-
-Ao fim do projeto disponibilizarei um projeto Colab pré-configurado para rodar o sistema.
-
-## Objetivo
-
-O projeto tem como objetivo **automatizar a leitura e análise de documentos financeiros**, transformando relatórios extensos em informações estruturadas que possam auxiliar na análise de ativos — tanto de forma retroativa (o que já aconteceu com a empresa) quanto, futuramente, preditiva (com base no histórico acumulado de documentos analisados).
-
-## Status
-
-Em desenvolvimento.
-
-**Implementado:**
-- Scraping de indicadores fundamentalistas e links de comunicados (`ScrapingService`)
-- Indexação de PDFs no ChromaDB com embeddings locais (`VectorstoreService.insert_to_db`)
-- Extração agentic RAG de eventos a partir de um texto/seção (`VectorstoreService.extract_events_from_section`)
-
-**Em construção:**
-- Leitura de PDF via Docling (`domain/files/`)
-- Divisão do documento em seções (`chunk_by_section`, hoje só configurado, não escrito)
-- Orquestração ponta a ponta (ler PDF → dividir em seções → extrair eventos de cada uma → filtrar por importância → gerar conclusão)
-- Camadas de API, aplicação e persistência (`api/`, `application/`, `repository/`)
-- Relatório preditivo, baseado no histórico acumulado de documentos indexados
-- Exportação de CSV para múltiplos ativos
-- Suporte completo a fundos imobiliários (scraping ainda cobre majoritariamente ações)
+│   ├── dtos.py                          # Data Transfer Objects (Pydantic models)
+│   └── exceptions.py                    # Tratamento de exceções personalizadas da API
+├── domain/
+│   ├── ai/
+│   │   ├── ai_client.py                 # Conectores e configuração do cliente Gemini API
+│   │   ├── ai_service.py                # Interface de geração de análises e prompts
+│   │   ├── chunking.py                  # Fatiamento e segmentação de texto dos PDFs
+│   │   └── vectorstore.py               # Indexação e busca por similaridade vetorial (RAG)
+│   ├── files/
+│   │   ├── indicator_interpreter.py     # Interpretação qualitativa das métricas coletadas
+│   │   ├── pdf_downloader.py            # Download dos relatórios gerenciais em formato PDF
+│   │   ├── report_builder.py            # Montagem e renderização do relatório final
+│   │   └── templates/
+│   │       └── report_fii.md            # Template
