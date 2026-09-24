@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 SCALE_THRESHOLDS = (
     (Decimal("1_000_000_000"), "B"),
     (Decimal("1_000_000"), "M"),
-    (Decimal("1_000"), "K"),
+    (Decimal("1_000"), "mil"),
 )
 
 def number_formatter(
@@ -16,11 +16,11 @@ def number_formatter(
 ) -> str:
     """
     Formats a numeric value into a Brazilian Portuguese formatted string.
-    Optionally compacts large numbers using K, M, and B scale suffixes.
+    Optionally compacts large numbers using 'mil', 'M', and 'B' scale suffixes.
 
     Examples:
         Decimal("1234567.89") -> "1,23 M"
-        Decimal("750000") -> "750,00 K"
+        Decimal("750000") -> "750,00 mil"
         Decimal("1234.56"), compact=False -> "1.234,56"
         None -> "Dado não disponível"
     """
