@@ -10,15 +10,15 @@ router = APIRouter(prefix="/api/v1/fiis", tags=["fiis"])
 @router.get("/{ticker}/indicators", response_model=RealStateFundResponse)
 def get_indicators(
     ticker: str,
-    use_case: GetIndicatorsFiiUseCase,
 ) -> RealStateFundResponse:
+    use_case = GetIndicatorsFiiUseCase()
     return use_case.execute(ticker)
 
 @router.get("/{ticker}/report")
 def get_report(
     ticker: str,
-    use_case: GenerateReportFiiUseCase,
 ) -> FileResponse:
+    use_case = GenerateReportFiiUseCase()
     report_path = use_case.execute(ticker)
 
     if report_path is None:
