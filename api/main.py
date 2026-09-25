@@ -1,14 +1,25 @@
 import logging
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from api.routers import fii
 from communication.exceptions import NoDataForExportError, ScrapingError
+from infrastructure.scheduler_service import SchedulerService
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Investe Aí", version="0.1.0")
+scheduler_service = SchedulerService()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler_service.start()
+    yield
+    scheduler_service.shutdown()
+
+app = FastAPI(title="Investe AI API", lifespan=lifespan)
 
 app.include_router(fii.router)
 
