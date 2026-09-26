@@ -1,6 +1,7 @@
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from zoneinfo import ZoneInfo  
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class SchedulerService:
         ):
         """Schedules a monthly job for generating and sending a report."""
         job_id = f"monthly_email_{ticker}_{email_to}"
-        trigger = CronTrigger(day=day_of_month, hour=hour, minute=0)
+        trigger = CronTrigger(day=day_of_month, hour=hour, minute=0, timezone=ZoneInfo("America/Sao_Paulo"))
 
         self.scheduler.add_job(
             func,
