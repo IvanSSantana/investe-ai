@@ -1,3 +1,4 @@
+import logging
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -6,6 +7,8 @@ import requests
 
 from communication.exceptions import ScrapingError
 
+logger = logging.getLogger(__name__)
+
 PDF_CACHE_ROOT = Path("pdf_cache")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
@@ -13,18 +16,23 @@ _ILLEGAL_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
 _PDF_MAGIC_BYTES = b"%PDF"
 _JS_REDIRECT_PATTERN = re.compile(r'window\.location\.href\s*=\s*"([^"]+)"')
 
-def download_pdf(url: str, ticker: str) -> Path:
+def download_pdf(url: str, ticker: str) -> Path | None:
     """Downloads a communication PDF and returns its local cache path."""
     filename = _derive_safe_filename(url, fallback=f"{ticker}.pdf")
 
     final_url = _resolve_redirect_url(url)
 
-    response = requests.get(final_url, headers=HEADERS, timeout=30)
-    response.raise_for_status()
+    response = requests.get(final_url, headers=HEADERS, timeout=60)
+    if response.status_code != 200:
+        logger.warning(f"Fail while downloading {final_url}: status code {response.status_code}")
+        return
+    # response.raise_for_status()
 
     if not response.content.startswith(_PDF_MAGIC_BYTES):
         preview = response.content[:30]
-        raise ScrapingError(f"URL não retornou um PDF válido (conteúdo começa com {preview!r}): {final_url}")
+        logger.warning(f"URL did not return a valid PDF (content starts with {preview!r}): {final_url}")
+        # raise ScrapingError(f"URL not returning a valid PDF (content starts with {preview!r}): {final_url}")
+        return
 
     target = PDF_CACHE_ROOT / ticker.upper() / filename
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -34,8 +42,12 @@ def download_pdf(url: str, ticker: str) -> Path:
 
 def _resolve_redirect_url(url: str) -> str:
     """Resolves the investidor10.com.br interstitial page's JS redirect to the real document URL."""
-    response = requests.get(url, headers=HEADERS, timeout=30)
-    response.raise_for_status()
+    response = requests.get(url, headers=HEADERS, timeout=60)
+    # response.raise_for_status()
+    if response.status_code != 200:
+        logger.warning(f"Fail while accessing {url}: status code {response.status_code}")
+        # raise ScrapingError(f"Falha ao acessar a URL {url}: status code {response.status_code}")
+        return url
 
     match = _JS_REDIRECT_PATTERN.search(response.text)
     return match.group(1) if match else url
