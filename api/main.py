@@ -9,6 +9,9 @@ from api.routers import fii
 from communication.exceptions import NoDataForExportError, ScrapingError
 from infrastructure.scheduler_service import SchedulerService
 
+from dotenv import load_dotenv
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO)
 
 scheduler_service = SchedulerService()
