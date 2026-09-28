@@ -81,8 +81,8 @@ class VectorstoreService:
             path=self._db_path,
             search_type=SearchType.hybrid,
             embedder=OllamaEmbedder(
-              id="nomic-embed-text",
-              dimensions=768
+              id="qwen3-embedding:0.6b",
+              dimensions=1024
             ),
             persistent_client=True,
         )
@@ -117,7 +117,7 @@ class VectorstoreService:
             search_knowledge=True, 
             add_knowledge_to_context=True,
             instructions=self.EXTRACTION_INSTRUCTIONS,
-            model=Ollama(id="qwen3:8b", options={"temperature": 0.04}),
+            model=Ollama(id="qwen3:30b", options={"temperature": 0.04}),
             output_schema=EventListResponse,
             debug_mode=True,
             debug_level=2
