@@ -59,7 +59,7 @@ class GenerateReportFiiUseCase:
             self._vectorstore_service.insert_to_db(knowledge, str(file_path))
 
         events = self._ai_service.extract_events_from_fund(knowledge)
-        conclusion = self._ai_service.generate_conclusion(events)
+        conclusion = self._ai_service.generate_conclusion(events, ticker)
         markdown = report_builder.generate_markdown_report(fund, events, conclusion)
         report_path = report_builder.save_markdown_report(markdown, ticker)
 

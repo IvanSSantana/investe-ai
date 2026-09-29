@@ -14,7 +14,14 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 class EventResponse(BaseModel):
-    titulo: str = Field(..., description="Titulo do evento corporativo extraido do documento.")
+    titulo: str = Field(
+        ...,
+        description=(
+            "Titulo do evento no formato fixo 'Ação: Detalhe específico' -- "
+            "ex.: 'Aquisição de imóvel: Shopping Park Sul', 'Renegociação de contrato: "
+            "Locatário XPTO'. NUNCA um título genérico como 'Resultado do fundo'."
+        ),
+    )
     descricao: str = Field(..., description="Descricao do evento corporativo extraido do documento.")
     impacto: str = Field(..., description="Impacto do evento corporativo no preco da acao da empresa.")
     importancia: int = Field(..., ge=1, le=10, description="1 = Altíssimo impacto econômico, 10 = Impacto praticamente nulo.")
@@ -46,7 +53,6 @@ class VectorstoreService:
     runs the event extraction agent.
     """
 
-    # NOTE: Problem with importancy. It's necessary to specify criteria for rate importance.
     EXTRACTION_INSTRUCTIONS = [
         "Extrair ATÉ 10 eventos corporativos mais relevantes e impactantes do relatório gerencial, priorizando eventos que realmente possam afetar a percepção do investidor, os resultados da empresa ou o valor do ativo.",
         "Ignore nomes de pessoas, incluindo cargos e eleições.",
@@ -61,6 +67,10 @@ class VectorstoreService:
         "Classifique a importância de cada evento numa escala de 1 a 10, onde 1 = altíssimo impacto econômico e 10 = impacto praticamente nulo. Todos os eventos de uma mesmo relatório devem ter importancias diferentes entre si.",
         "Se a seção referenciar algo que parece incompleto, cortado, ou remeter a outra parte do documento (ex.: 'conforme mencionado', 'ver nota X', um valor sem sua base de comparacao), use a busca no conhecimento para complementar antes de finalizar a extração.",
         "Especifique dados concretos como nomes de empresas parceiras, nomes de produtos lançados, nomes de imóveis comprados etc. na descrição do evento.",
+        "Um EVENTO válido é uma ação, decisão ou ocorrência NOVA relatada especificamente para o período coberto por este relatório -- ex.: compra ou venda de um imóvel nomeado, renegociação ou rescisão de contrato com um locatário nomeado, mudança de gestor, emissão de cotas, captação de recursos, litígio novo.",
+        "NÃO é um evento: informação descritiva ou estrutural do fundo que não muda mês a mês -- ex.: 'o fundo é do segmento logístico', 'a gestão é ativa', 'o fundo investe em lajes corporativas'.",
+        "Se não houver um evento adequado para preencher alguma categoria, NÃO invente um evento genérico ou descritivo só para preenchê-la. Retornar menos de 10 eventos é permitido.",
+        "O TÍTULO de cada evento deve SEMPRE seguir o padrão 'Ação: Detalhe específico' -- ex.: 'Aquisição de imóvel: Shopping Park Sul', 'Renegociação de contrato: Locatário XPTO', 'Emissão de cotas: 5ª emissão, R$ 200 milhões'. NUNCA use títulos genéricos como 'Resultado do fundo' ou 'Atualização financeira'.",
         "SEMPRE retorne SOMENTE JSON válido.",
         "SEMPRE defina o campo 'categoria' com algum elemento da lista a seguir:",
         CATEGORIES_STR,
@@ -75,7 +85,7 @@ class VectorstoreService:
 
         Path(self._db_path).mkdir(parents=True, exist_ok=True)
 
-        return ChromaDb (
+        return ChromaDb(
             collection=f"fii_{ticker.lower()}",
             name="stocks_db",
             path=self._db_path,
@@ -114,31 +124,32 @@ class VectorstoreService:
         agent = Agent(
             role="Extrator de eventos corporativos",
             knowledge=knowledge_db,
-            search_knowledge=True, 
+            search_knowledge=True,
             add_knowledge_to_context=True,
             instructions=self.EXTRACTION_INSTRUCTIONS,
-            model=Ollama(id="qwen3:30b", options={"temperature": 0.04}),
+            model=Ollama(id="qwen3:30b", options={"temperature": 0.07}),
             output_schema=EventListResponse,
             debug_mode=True,
             debug_level=2
         )
 
-        response = agent.run(doc_content)   
+        response = agent.run(doc_content)
         events = response.content.eventos # type: ignore
 
         return [event.model_dump() for event in events]
 
 if __name__ == "__main__":
+    TICKER = "MXRF11"
     service = VectorstoreService()
-    db = service.build_vectorstore("MXRF11")
+    db = service.build_vectorstore(TICKER)
 
-    pdf_path = "Relatório Gerencial MXRF11.pdf"
+    pdf_path = f"Relatório Gerencial {TICKER}.pdf"
 
-    knowledge = service.get_or_create_knowledge(vector_db=db, ticker="MXRF11")
+    knowledge = service.get_or_create_knowledge(vector_db=db, ticker=TICKER)
     service.insert_to_db(knowledge=knowledge, file_path=pdf_path)
-    
+
     events = service.extract_events_from_document(
-        doc_content=f"Quais sao os eventos mais relevantes e impactantes para o fundo MXRF11? Indique os impactos diretos ao preco da acao. Busque os eventos mais relevantes com base em cada categoria a seguir: {CATEGORIES_STR}.",
+            doc_content=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
         knowledge_db=knowledge,
     )
     import json
