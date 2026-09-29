@@ -42,5 +42,5 @@ class SendReportEmailRequest(BaseModel):
 class ScheduleReportRequest(BaseModel):
     ticker: str = Field(..., example="HGLG11")
     email_to: EmailStr = Field(..., example="user@example.com")
-    day_of_month: int = Field(default=1, ge=1, le=28, description="Day of the month to trigger the email")
+    day_of_month: int = Field(default=1, ge=1, le=31, description="Day of the month to trigger the email")
     hour: int = Field(default=9, ge=0, le=23, description="Hour of the day (0-23)")
