@@ -127,7 +127,7 @@ class VectorstoreService:
             search_knowledge=True,
             add_knowledge_to_context=True,
             instructions=self.EXTRACTION_INSTRUCTIONS,
-            model=Ollama(id="qwen3:30b", options={"temperature": 0.07}),
+            model=Ollama(id="qwen3:8b", options={"temperature": 0.07}),
             output_schema=EventListResponse,
             debug_mode=True,
             debug_level=2

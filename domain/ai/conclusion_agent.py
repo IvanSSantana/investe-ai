@@ -29,7 +29,7 @@ class ConclusionAgent:
         "Não invente informações que não estejam nos eventos fornecidos ou nos dados retornados pelas ferramentas.",
     ]
 
-    def __init__(self, model_id: str = "qwen3:30b"):
+    def __init__(self, model_id: str = "qwen3:8b"):
         self._model_id = model_id
 
     def generate(self, events: list[dict], ticker: str) -> str | None:

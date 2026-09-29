@@ -22,16 +22,28 @@ def download_pdf(url: str, ticker: str) -> Path | None:
 
     final_url = _resolve_redirect_url(url)
 
-    response = requests.get(final_url, headers=HEADERS, timeout=60)
-    if response.status_code != 200:
-        logger.warning(f"Fail while downloading {final_url}: status code {response.status_code}")
+    if final_url is "":
         return
-    # response.raise_for_status()
+
+    try:
+        response = requests.get(final_url, headers=HEADERS, timeout=60)
+        # response.raise_for_status()
+        if response.status_code != 200:
+            logger.warning(f"Fail while downloading {final_url}: status code {response.status_code}")
+            return
+        
+    except requests.exceptions.Timeout:
+        logger.warning(f"Fail while accessing {url}: timeout error.")
+        return ""
+    
+    except requests.exceptions.RequestException:
+        logger.warning(f"Fail while accessing {url}: request error.")
+        return ""
 
     if not response.content.startswith(_PDF_MAGIC_BYTES):
         preview = response.content[:30]
         logger.warning(f"URL did not return a valid PDF (content starts with {preview!r}): {final_url}")
-        # raise ScrapingError(f"URL not returning a valid PDF (content starts with {preview!r}): {final_url}")
+        # raise ScrapingError(f"URL not returning a valid PDF (contenzt starts with {preview!r}): {final_url}")
         return
 
     target = PDF_CACHE_ROOT / ticker.upper() / filename
@@ -42,15 +54,17 @@ def download_pdf(url: str, ticker: str) -> Path | None:
 
 def _resolve_redirect_url(url: str) -> str:
     """Resolves the investidor10.com.br interstitial page's JS redirect to the real document URL."""
-    response = requests.get(url, headers=HEADERS, timeout=60)
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=60)
+    except requests.exceptions.ReadTimeout:
+        logger.warning(f"Fail while accessing {url}: timeout error.")
+        return ""
+    
     # response.raise_for_status()
-    if response.status_code != 200:
-        logger.warning(f"Fail while accessing {url}: status code {response.status_code}")
         # raise ScrapingError(f"Falha ao acessar a URL {url}: status code {response.status_code}")
-        return url
 
     match = _JS_REDIRECT_PATTERN.search(response.text)
-    return match.group(1) if match else url
+    return match.group(1) if match else ""
 
 def _derive_safe_filename(url: str, fallback: str) -> str:
     """Extracts a filesystem-safe .pdf filename from a URL's path.
