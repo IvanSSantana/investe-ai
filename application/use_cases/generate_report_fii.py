@@ -7,6 +7,8 @@ from domain.files import pdf_downloader, report_builder
 from domain.scraping.scraping_service import ScrapingService
 from repository.report_registry import ReportRegistry
 
+from communication.exceptions import PDFDownloadFailedException
+
 logger = logging.getLogger(__name__)
 
 class GenerateReportFiiUseCase:
@@ -29,6 +31,10 @@ class GenerateReportFiiUseCase:
         if not pdf_urls:
             logger.warning(f"No recent announcements found for {ticker} — no report will be generated.")
             return None
+
+        if not self._has_valid_cached_pdfs(ticker):
+            logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")
+            raise PDFDownloadFailedException(ticker)
 
         cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
         if cached_report is not None:
@@ -66,6 +72,14 @@ class GenerateReportFiiUseCase:
         self._report_registry.record_generation(ticker, report_path, pdf_urls)
 
         return report_path
+
+    def _has_valid_cached_pdfs(self, ticker: str) -> bool:
+        """Checks if there is at least one valid, non-empty PDF cached in disk."""
+        cache_dir = Path("pdf_cache") / ticker.upper()
+        if not cache_dir.exists():
+            return False
+        
+        return any(file.stat().st_size > 0 for file in cache_dir.glob("*.pdf"))
 
 if __name__ == "__main__":
     usecase = GenerateReportFiiUseCase()

@@ -1,16 +1,17 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import FileResponse
 
 from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 from application.use_cases.send_email_report import SendEmailReport
+from application.use_cases.export_price_history_fii import ExportPriceHistoryFiiUseCase
 from infrastructure.email_service import EmailService
 from communication.dtos import (
     SendReportEmailRequest,
     ScheduleReportRequest,
-    RealStateFundResponse,
+    RealStateFundResponse
 )
 
 from infrastructure.scheduler_service import SchedulerService
@@ -82,3 +83,28 @@ def schedule_monthly_email(
     return {
         "message": f"Monthly report for {payload.ticker} successfully scheduled for day {payload.day_of_month} at {payload.hour}:00."
     }
+
+@router.get("/{ticker}/history/csv")
+def get_price_history_csv(
+    ticker: str,
+    include_explanation: bool = Query(
+        True, description="Se verdadeiro, insere explicações acerca das variações de preço acima de 2.5%"
+    ),
+) -> FileResponse:
+    """
+    Generates and returns a CSV file containing 1-year monthly price variations,
+    total returns, and optional AI explanations for outlier months.
+    """
+    use_case = ExportPriceHistoryFiiUseCase()
+    try:
+        csv_path = use_case.execute(ticker=ticker, include_explanation=include_explanation)
+        return FileResponse(
+            path=csv_path,
+            media_type="text/csv",
+            filename=csv_path.name,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )

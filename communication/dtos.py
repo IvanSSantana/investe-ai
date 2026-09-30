@@ -36,11 +36,11 @@ class RealStateFundResponse(BaseModel):
     fees: Decimal | None = None
 
 class SendReportEmailRequest(BaseModel):
-    ticker: str = Field(..., example="HGLG11", description="FII Ticker symbol")
-    email_to: EmailStr = Field(..., example="user@example.com", description="Recipient email address")
+    ticker: str = Field(..., example="HGLG11", description="FII Ticker symbol") # type: ignore
+    email_to: EmailStr = Field(..., example="user@example.com", description="Recipient email address") # type: ignore
 
 class ScheduleReportRequest(BaseModel):
-    ticker: str = Field(..., example="HGLG11")
-    email_to: EmailStr = Field(..., example="user@example.com")
+    ticker: str = Field(..., example="HGLG11") # type: ignore
+    email_to: EmailStr = Field(..., example="user@example.com") # type: ignore
     day_of_month: int = Field(default=1, ge=1, le=31, description="Day of the month to trigger the email")
     hour: int = Field(default=9, ge=0, le=23, description="Hour of the day (0-23)")

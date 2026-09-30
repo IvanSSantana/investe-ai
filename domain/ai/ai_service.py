@@ -29,5 +29,5 @@ class AiService:
 
     def generate_conclusion(self, events: list[dict], ticker: str) -> str | None:
         """Generates a short conclusion from already extracted events, enriched
-        with market context (price, news) fetched by ConclusionAgent."""
+        with market context (price, news and professional recommendations) fetched by ConclusionAgent."""
         return self._conclusion_agent.generate(events, ticker)
