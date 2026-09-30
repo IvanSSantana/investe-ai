@@ -4,7 +4,7 @@ from typing import Any
 from agno.agent import Agent
 from agno.models.ollama import Ollama
 from agno.knowledge import Knowledge
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from domain.ai.vectorstore import VectorstoreService
 
@@ -90,5 +90,6 @@ class VariationExplainAgent:
                     context += "\nNotícias da Web:\n" + "\n".join(snippets)
             except Exception as e:
                 logger.warning(f"DuckDuckGo search failed: {e}")
-
+                
+        logger.debug(f"Context from DuckDuckGo: {context}")
         return context.strip()

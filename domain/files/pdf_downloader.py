@@ -34,11 +34,11 @@ def download_pdf(url: str, ticker: str) -> Path | None:
         
     except requests.exceptions.Timeout:
         logger.warning(f"Fail while accessing {url}: timeout error.")
-        return ""
+        return 
     
     except requests.exceptions.RequestException:
         logger.warning(f"Fail while accessing {url}: request error.")
-        return ""
+        return 
 
     if not response.content.startswith(_PDF_MAGIC_BYTES):
         preview = response.content[:30]

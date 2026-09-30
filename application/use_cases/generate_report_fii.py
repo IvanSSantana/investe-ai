@@ -32,10 +32,6 @@ class GenerateReportFiiUseCase:
             logger.warning(f"No recent announcements found for {ticker} — no report will be generated.")
             return None
 
-        if not self._has_valid_cached_pdfs(ticker):
-            logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")
-            raise PDFDownloadFailedException(ticker)
-
         cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
         if cached_report is not None:
             logger.warning(f"Report for {ticker} is up-to-date. Returning cached report at {cached_report}.")
@@ -63,6 +59,10 @@ class GenerateReportFiiUseCase:
         for url in pdf_urls:
             file_path = pdf_downloader.download_pdf(url, ticker)
             self._vectorstore_service.insert_to_db(knowledge, str(file_path))
+
+        if not self._has_valid_cached_pdfs(ticker):
+            logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")
+            raise PDFDownloadFailedException(ticker)
 
         events = self._ai_service.extract_events_from_fund(knowledge)
         conclusion = self._ai_service.generate_conclusion(events, ticker)
