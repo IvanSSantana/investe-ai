@@ -1,6 +1,8 @@
 import logging
 from typing import Any
+
 from agno.agent import Agent
+from agno.models.ollama import Ollama
 from agno.knowledge import Knowledge
 from duckduckgo_search import DDGS
 
@@ -17,6 +19,7 @@ class VariationExplainAgent:
     ):
         self._vectorstore_service = vectorstore_service 
         self._agent = Agent(
+            model=Ollama(id="qwen3:8b", options={"temperature": 0.17}),
             instructions=[
                 "Você é um analista financeiro sênior especializado em Fundos Imobiliários (FIIs) no Brasil.",
                 "Sua tarefa é explicar sucintamente o motivo da variação atípica do preço de um FII em um mês específico.",
@@ -25,7 +28,9 @@ class VariationExplainAgent:
                 "2. Baseie-se primeiramente nos fatos informados do contexto (relatórios, notícias ou cenário econômico da época).",
                 "3. Se o contexto for muito limitado, informe SOMENTE: 'Insuficiência de dados para explicação.'.",
                 "4. Responda estritamente em português.",
-            ]
+            ],
+            debug_mode=True,
+            debug_level=2
         )
 
     def explain_month(

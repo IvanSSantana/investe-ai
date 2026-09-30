@@ -6,7 +6,6 @@ from agno.tools.yfinance import YFinanceTools
 
 logger = logging.getLogger(__name__)
 
-
 class ConclusionAgent:
     """Generates the report's final conclusion from already-extracted events,
     enriched with market context (historical prices, news and professional recommendations) fetched via YFinanceTools.
