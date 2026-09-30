@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from domain.files import pdf_downloader, report_builder
 from domain.scraping.scraping_service import ScrapingService
 from repository.report_registry import ReportRegistry
 
-from communication.exceptions import PDFDownloadFailedException
+from communication.exceptions import NoDataForExportError, PDFDownloadFailedException
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,23 @@ class GenerateReportFiiUseCase:
         self._ai_service = ai_service if ai_service else AiService(self._vectorstore_service)
         self._report_registry = report_registry
 
-    def execute(self, ticker: str) -> Path | None:
-        # For debugging while filter by 'Relatório Gerencial' has not yet been implemented
+    def execute(self, ticker: str, force_refresh: bool = False) -> Path:
+        """
+        Executes report generation or fetches from cache if valid.
+        """
+        ticker_upper = ticker.upper()
+        now_str = datetime.now().strftime("%Y_%m")
+        cached_report = Path("pdf_cache") / ticker_upper / f"{ticker_upper}_{now_str}.pdf"
+
+        if not force_refresh and cached_report.exists():
+            logger.info(f"Serving cached report for {ticker_upper}: {cached_report.name}")
+            return cached_report
+
+        logger.info(f"Generating new report for {ticker_upper}")
         pdf_urls = self._scraping_service.search_pdfs(ticker, asset_type="fiis")
 
         if not pdf_urls:
-            logger.warning(f"No recent announcements found for {ticker} — no report will be generated.")
-            return None
+            raise NoDataForExportError(f"No recent announcements found for {ticker} — no report will be generated.")
 
         cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
         if cached_report is not None:

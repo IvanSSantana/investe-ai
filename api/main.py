@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     yield
     scheduler_service.shutdown()
 
-app = FastAPI(title="Investe AI API", lifespan=lifespan)
+app = FastAPI(title="Investe Aí API", lifespan=lifespan)
 
 app.include_router(fii.router)
 

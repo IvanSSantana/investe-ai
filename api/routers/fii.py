@@ -24,12 +24,13 @@ def get_scheduler_service() -> SchedulerService:
     from api.main import scheduler_service
     return scheduler_service
 
-@router.get("/{ticker}/indicators", response_model=RealStateFundResponse)
+@router.get("/{ticker}/indicators")
 def get_indicators(
     ticker: str,
-) -> RealStateFundResponse:
+    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache diário e refaz o scraping"),
+):
     use_case = GetIndicatorsFiiUseCase()
-    return use_case.execute(ticker)
+    return use_case.execute(ticker=ticker, force_refresh=force_refresh)
 
 @router.get("/{ticker}/report")
 def get_report(
@@ -90,6 +91,7 @@ def get_price_history_csv(
     include_explanation: bool = Query(
         True, description="Se verdadeiro, insere explicações acerca das variações de preço acima de 2.5%"
     ),
+    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache mensal e gera um novo CSV"),
 ) -> FileResponse:
     """
     Generates and returns a CSV file containing 1-year monthly price variations,
@@ -97,7 +99,11 @@ def get_price_history_csv(
     """
     use_case = ExportPriceHistoryFiiUseCase()
     try:
-        csv_path = use_case.execute(ticker=ticker, include_explanation=include_explanation)
+        csv_path = use_case.execute(
+            ticker=ticker, 
+            include_explanation=include_explanation, 
+            force_refresh=force_refresh
+        )
         return FileResponse(
             path=csv_path,
             media_type="text/csv",

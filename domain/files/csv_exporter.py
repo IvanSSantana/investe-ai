@@ -7,7 +7,10 @@ logger = logging.getLogger(__name__)
 
 class CSVExporter:
     def export_monthly_summary(
-        self, ticker: str, summaries: list[dict[str, Any]], output_dir: str = "csv_cache"
+        self, ticker: str, 
+        summaries: list[dict[str, Any]], 
+        filename: str, 
+        output_dir: str = "csv_cache"
     ) -> Path:
         """
         Exports monthly financial summaries to a CSV file including explanations.
@@ -23,7 +26,7 @@ class CSVExporter:
         target_dir = Path(output_dir) / ticker.upper()
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = target_dir / "history_1y.csv"
+        file_path = target_dir / filename
 
         fieldnames = [
             "year_month",
