@@ -57,7 +57,7 @@ class ExportPriceHistoryFiiUseCase:
             price_var = month.get("price_variation_percent", 0.0)
 
             if include_explanation:
-                if price_var >= threshold_percent:
+                if abs(price_var) >= threshold_percent:
                     explanation = self.explain_agent.explain_month(ticker_upper, month)
                     month["explanation"] = explanation
                 else:
