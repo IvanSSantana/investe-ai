@@ -4,7 +4,7 @@ from pathlib import Path
 
 from domain.ai.ai_service import AiService
 from domain.ai.vectorstore import VectorstoreService
-from domain.files import pdf_downloader, report_builder
+from domain.files import report_builder, url_redirect_resolver
 from domain.scraping.scraping_service import ScrapingService
 from repository.report_registry import ReportRegistry
 
@@ -68,8 +68,9 @@ class GenerateReportFiiUseCase:
         knowledge = self._vectorstore_service.get_or_create_knowledge(vector_db, ticker)
 
         for url in pdf_urls:
-            file_path = pdf_downloader.download_pdf(url, ticker)
-            self._vectorstore_service.insert_to_db(knowledge, str(file_path))
+            url = url_redirect_resolver.execute(url)
+            if url:
+                self._vectorstore_service.insert_to_db(knowledge, url, ticker)
 
         if not self._has_valid_cached_pdfs(ticker):
             logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")

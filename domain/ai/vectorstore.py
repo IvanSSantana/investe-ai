@@ -1,11 +1,14 @@
 import logging
 from pathlib import Path
+from datetime import datetime
 
 from agno.vectordb.chroma import ChromaDb, SearchType
 from agno.knowledge import Knowledge
-from agno.knowledge.chunking.semantic import SemanticChunking
 from agno.knowledge.embedder.ollama import OllamaEmbedder
-from agno.knowledge.reader.pdf_reader import PDFReader
+from agno.knowledge.reader.docling_reader import DoclingReader
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
 
 from agno.agent import Agent
 from agno.models.ollama import Ollama
@@ -77,8 +80,52 @@ class VectorstoreService:
         "SEMPRE priorize 1 evento de cada categoria, isto é, evite repetir eventos de uma mesma categoria, a menos que não haja suficientes ou adequados."
     ]
 
-    def __init__(self, db_path: str = "./rag_db"):
+    def __init__(self, db_path: str = "./rag_db", md_cache_dir: str = "md_cache"):
         self._db_path = db_path
+        self._md_cache_dir = md_cache_dir
+        self._docling_reader = None
+
+    @property
+    def reader(self) -> DoclingReader:
+        if self._docling_reader is None:
+            pipeline_options = PdfPipelineOptions()
+            pipeline_options.do_ocr = False
+            pipeline_options.do_formula_enrichment = False
+            pipeline_options.generate_page_images = False
+            pipeline_options.table_structure_options.mode = "FAST"
+            pipeline_options.document_timeout = 180.0
+
+            converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+                }
+            )
+            self._docling_reader = DoclingReader(converter=converter, output_format="markdown")
+
+        return self._docling_reader
+
+    def cache_markdown(self, url: str, ticker: str) -> str:
+        ticker_upper = ticker.upper()
+        target_dir = Path(self._md_cache_dir) / ticker_upper
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        period = datetime.now().strftime("%Y_%m")
+        md_file_path = target_dir / f"{ticker_upper}_{period}.md"
+        
+        if md_file_path.exists() and md_file_path.stat().st_size > 0:
+            logger.info(f"Serving cached Markdown for {ticker_upper}: {md_file_path}")
+            return str(md_file_path)
+
+        logger.info(
+                f"Extracting and generating Markdown via DoclingReader for {ticker_upper} ({period}) from url: {url}"
+            )        
+        documents = self.reader.read(url)
+        markdown_content = "\n\n".join([doc.content for doc in documents if doc.content])
+
+        md_file_path.write_text(markdown_content, encoding="utf-8")
+        logger.info(f"Successfully saved Markdown cache to: {md_file_path}")
+
+        return str(md_file_path)
 
     def build_vectorstore(self, ticker: str) -> ChromaDb:
         logger.info("Building vectorstore with ChromaDB...")
@@ -105,21 +152,21 @@ class VectorstoreService:
             max_results=30,
         )
 
-    def insert_to_db(self, knowledge: Knowledge, file_path: str) -> None:
+    def insert_to_db(self, knowledge: Knowledge, file_url: str, ticker: str) -> None:
         """Indexes a PDF in the vectorstore in granular chunks."""
-        logger.info(f"Inserting file {file_path} into vectorstore...")
+        logger.info(f"Inserting file {file_url} into vectorstore...")
 
-        reader = PDFReader(
-            chunking_strategy=SemanticChunking(
-                chunk_size=1000,
-                embedder=knowledge.vector_db.embedder, # type: ignore
-            )
+        md_file_path = self.cache_markdown(
+            url=file_url,
+            ticker=ticker,
         )
-        knowledge.insert(path=file_path, reader=reader, skip_if_exists=True, name=file_path)
+
+        logger.info(f"Inserting Markdown file {md_file_path} into vectorstore...")
+        knowledge.insert(path=file_url, reader=self._docling_reader, skip_if_exists=True, name=file_url)
 
         logger.info("File inserted successfully.")
 
-    def extract_events_from_document(self, doc_content: str, knowledge_db: Knowledge) -> list[dict]:
+    def extract_events_from_document(self, query: str, knowledge_db: Knowledge) -> list[dict]:
         """The extraction agent runs on a entire document."""
         agent = Agent(
             role="Extrator de eventos corporativos",
@@ -133,7 +180,7 @@ class VectorstoreService:
             debug_level=2
         )
 
-        response = agent.run(doc_content)
+        response = agent.run(query)
         events = response.content.eventos # type: ignore
 
         return [event.model_dump() for event in events]
@@ -146,10 +193,10 @@ if __name__ == "__main__":
     pdf_path = f"Relatório Gerencial {TICKER}.pdf"
 
     knowledge = service.get_or_create_knowledge(vector_db=db, ticker=TICKER)
-    service.insert_to_db(knowledge=knowledge, file_path=pdf_path)
+    service.insert_to_db(knowledge=knowledge, file_url=pdf_path)
 
     events = service.extract_events_from_document(
-            doc_content=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
+            query=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
         knowledge_db=knowledge,
     )
     import json
