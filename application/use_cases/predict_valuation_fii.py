@@ -18,10 +18,10 @@ class PredictValuationFiiUseCase:
         yfinance_service: YFinanceService = YFinanceService(),
         market_data_service: MarketDataService = MarketDataService(),
     ):
-        self._ai_service = ai_service 
-        self._get_indicators_use_case = get_indicators_use_case 
-        self._yfinance_service = yfinance_service 
-        self._market_data_service = market_data_service 
+        self._ai_service = ai_service
+        self._get_indicators_use_case = get_indicators_use_case
+        self._yfinance_service = yfinance_service
+        self._market_data_service = market_data_service
 
     def execute(self, ticker: str) -> ValuationPredictionResponse:
         """Fetches dynamic indicators, historical series, risk-free rate, and executes valuation pipeline."""
@@ -30,23 +30,30 @@ class PredictValuationFiiUseCase:
 
         raw_indicators = self._get_indicators_use_case.execute(ticker_upper)
 
-        # Garantia de tipagem: se for dicionário, converte para o DTO Pydantic
         if isinstance(raw_indicators, dict):
             indicators = RealStateFundResponse(**raw_indicators)
         else:
             indicators = raw_indicators
 
-        current_price = indicators.price
-        vp_per_share = indicators.asset_value
-
+        current_price = float(indicators.price) if indicators.price is not None else 0.0
+        vp_per_share = float(indicators.asset_value)
+    
         pvp = round(current_price / vp_per_share, 2) 
 
         history = self._yfinance_service.get_price_history(f"{ticker_upper}.SA")
-        if "Dividends" in history and not history["Dividends"].empty:
-            recent_dpus = history["Dividends"].tail(3).tolist()
-        else:
-            logger.warning(f"No dividend history found for {ticker_upper}. Estimating DPU from current price and dividend yield.")
-            annual_dy_percent = indicators.dividend_yield
+
+        recent_dpus: list[float] = []
+        if not history.empty and "Dividends" in history.columns:
+            dividends = history["Dividends"][history["Dividends"] > 0]
+            if not dividends.empty:
+                recent_dpus = [float(val) for val in dividends.tail(3).tolist()]
+
+        if not recent_dpus:
+            logger.warning(
+                f"No dividend history found for {ticker_upper}. Estimating DPU from current price and dividend yield."
+            )
+            annual_dy_percent = float(indicators.dividend_yield)
+            
             estimated_monthly_dpu = (current_price * (annual_dy_percent / 100.0)) / 12.0
             recent_dpus = [estimated_monthly_dpu] 
 
@@ -58,4 +65,5 @@ class PredictValuationFiiUseCase:
             vp_per_share=vp_per_share,
             pvp=pvp,
             recent_dpus=recent_dpus,
+            risk_free_rate=risk_free_rate,
         )

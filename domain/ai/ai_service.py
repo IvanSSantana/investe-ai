@@ -46,6 +46,7 @@ class AiService:
         vp_per_share: float,
         pvp: float,
         recent_dpus: list[float],
+        risk_free_rate: float = 0.105,
         historical_mean_pvp: float = 1.0,
     ) -> ValuationPredictionResponse:
         ticker_upper = ticker.upper()
@@ -55,6 +56,7 @@ class AiService:
             vp_per_share=vp_per_share,
             historical_mean_pvp=historical_mean_pvp,
             recent_dpus=recent_dpus,
+            risk_free_rate=risk_free_rate,
         )
 
         db = self._vectorstore_service.build_vectorstore(ticker_upper)
@@ -64,6 +66,6 @@ class AiService:
             ticker=ticker_upper,
             current_price=current_price,
             pvp=pvp,
-            quant_result=quantitative_result,
+            quantitative_result=quantitative_result,
             knowledge_db=knowledge,
         )
