@@ -92,7 +92,7 @@ class VectorstoreService:
             pipeline_options.do_ocr = False
             pipeline_options.do_formula_enrichment = False
             pipeline_options.generate_page_images = False
-            pipeline_options.table_structure_options.mode = TableFormerMode("FAST") # type: ignore
+            pipeline_options.table_structure_options.mode = "FAST" # type: ignore
             pipeline_options.document_timeout = 180.0
 
             converter = DocumentConverter(
@@ -153,7 +153,7 @@ class VectorstoreService:
         )
 
     def insert_to_db(self, knowledge: Knowledge, file_url: str, ticker: str) -> None:
-        """Indexes a PDF in the vectorstore in granular chunks."""
+        """Indexes a PDF (via its already-converted Markdown cache) in the vectorstore."""
         logger.info(f"Inserting file {file_url} into vectorstore...")
 
         md_file_path = self.cache_markdown(
@@ -162,7 +162,7 @@ class VectorstoreService:
         )
 
         logger.info(f"Inserting Markdown file {md_file_path} into vectorstore...")
-        knowledge.insert(path=file_url, reader=self._docling_reader, skip_if_exists=True, name=file_url)
+        knowledge.insert(path=md_file_path, reader=self.reader, skip_if_exists=True, name=md_file_path)
 
         logger.info("File inserted successfully.")
 
