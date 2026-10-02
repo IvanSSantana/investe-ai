@@ -61,3 +61,19 @@ class YFinanceService:
             )
 
         return monthly_data
+    
+    def get_price_history(self, ticker: str, period: str = "1y") -> pd.DataFrame:
+        """Fetches historical price and dividend data for a ticker using yfinance."""
+        try:
+            logger.info(f"Fetching price history from yfinance for {ticker} (period: {period})...")
+            ticker_obj = yf.Ticker(ticker)
+            history = ticker_obj.history(period=period)
+            
+            if history.empty:
+                logger.warning(f"No history data returned for ticker {ticker}.")
+                return pd.DataFrame()
+                
+            return history
+        except Exception as exc:
+            logger.error(f"Error fetching yfinance price history for {ticker}: {exc}")
+            return pd.DataFrame()

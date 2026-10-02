@@ -1,7 +1,7 @@
 import logging
 
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
-from communication.dtos import ValuationPredictionResponse
+from communication.dtos import RealStateFundResponse, ValuationPredictionResponse
 from domain.ai.ai_service import AiService
 from infrastructure.market_data_service import MarketDataService
 from infrastructure.yfinance_service import YFinanceService
@@ -28,7 +28,13 @@ class PredictValuationFiiUseCase:
         ticker_upper = ticker.upper()
         logger.info(f"Executing Integrated Valuation Prediction Use Case for {ticker_upper}")
 
-        indicators = self._get_indicators_use_case.execute(ticker_upper)
+        raw_indicators = self._get_indicators_use_case.execute(ticker_upper)
+
+        # Garantia de tipagem: se for dicionário, converte para o DTO Pydantic
+        if isinstance(raw_indicators, dict):
+            indicators = RealStateFundResponse(**raw_indicators)
+        else:
+            indicators = raw_indicators
 
         current_price = indicators.price
         vp_per_share = indicators.asset_value
@@ -52,5 +58,4 @@ class PredictValuationFiiUseCase:
             vp_per_share=vp_per_share,
             pvp=pvp,
             recent_dpus=recent_dpus,
-            risk_free_rate=risk_free_rate,
         )

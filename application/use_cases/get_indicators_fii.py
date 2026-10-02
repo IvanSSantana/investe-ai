@@ -2,7 +2,6 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from domain.scraping.scraping_service import ScrapingService
 from communication.dtos import RealStateFundResponse
@@ -42,7 +41,7 @@ class GetIndicatorsFiiUseCase:
         if data:
             self._purge_old_caches(target_dir, today_str)
             with open(cache_file, "w", encoding="utf-8") as file:
-                json.dump(data, file, ensure_ascii=False, indent=2)
+                json.dump(data.model_dump(mode="json"), file, ensure_ascii=False, indent=2)
 
         return data
 
