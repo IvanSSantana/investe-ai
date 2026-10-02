@@ -72,7 +72,7 @@ class GenerateReportFiiUseCase:
             if url:
                 self._vectorstore_service.insert_to_db(knowledge, url, ticker)
 
-        if not self._has_valid_cached_pdfs(ticker):
+        if not self._has_valid_cached_files(ticker):
             logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")
             raise PDFDownloadFailedException(ticker)
 
@@ -85,13 +85,13 @@ class GenerateReportFiiUseCase:
 
         return report_path
 
-    def _has_valid_cached_pdfs(self, ticker: str) -> bool:
-        """Checks if there is at least one valid, non-empty PDF cached in disk."""
-        cache_dir = Path("pdf_cache") / ticker.upper()
+    def _has_valid_cached_files(self, ticker: str) -> bool:
+        """Checks if there is at least one valid, non-empty markdown cached in disk."""
+        cache_dir = Path("md_cache") / ticker.upper()
         if not cache_dir.exists():
             return False
         
-        return any(file.stat().st_size > 0 for file in cache_dir.glob("*.pdf"))
+        return any(file.stat().st_size > 0 for file in cache_dir.glob("*.md"))
 
 if __name__ == "__main__":
     usecase = GenerateReportFiiUseCase()

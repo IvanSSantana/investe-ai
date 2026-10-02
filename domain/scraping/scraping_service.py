@@ -226,25 +226,21 @@ class ScrapingService:
         """Extract the current value of an indicator from a horizontal table."""
         rows = soup.select(table_selector)
 
-        logger.debug(rows)
         for row in rows:
             indicator_element = row.select_one("td.indicator")
             if not indicator_element:
                 continue
 
-            logger.debug(f"Indicador elemento: {indicator_element}")
             indicator_name = indicator_element.get_text(" ", strip=True)
 
             if indicator_name != indicator:
                 continue
 
-            logger.debug(f"Indicador: {indicator_name}")
             values = row.select("td.value")
 
             if not values:
                 return None
 
-            logger.debug(f"Primeiro valor: {values[0]}")
             return values[0].get_text(" ", strip=True)
 
         logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {table_selector})")

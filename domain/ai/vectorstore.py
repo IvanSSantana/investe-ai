@@ -7,7 +7,7 @@ from agno.knowledge import Knowledge
 from agno.knowledge.embedder.ollama import OllamaEmbedder
 from agno.knowledge.reader.docling_reader import DoclingReader
 from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
 from agno.agent import Agent
@@ -92,7 +92,7 @@ class VectorstoreService:
             pipeline_options.do_ocr = False
             pipeline_options.do_formula_enrichment = False
             pipeline_options.generate_page_images = False
-            pipeline_options.table_structure_options.mode = "FAST"
+            pipeline_options.table_structure_options.mode = TableFormerMode("FAST") # type: ignore
             pipeline_options.document_timeout = 180.0
 
             converter = DocumentConverter(
@@ -190,10 +190,10 @@ if __name__ == "__main__":
     service = VectorstoreService()
     db = service.build_vectorstore(TICKER)
 
-    pdf_path = f"Relatório Gerencial {TICKER}.pdf"
+    pdf_url = "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=1307338&amp;cvm=true"
 
     knowledge = service.get_or_create_knowledge(vector_db=db, ticker=TICKER)
-    service.insert_to_db(knowledge=knowledge, file_url=pdf_path)
+    service.insert_to_db(knowledge=knowledge, file_url=pdf_url, ticker=TICKER)
 
     events = service.extract_events_from_document(
             query=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
