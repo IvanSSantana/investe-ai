@@ -44,3 +44,53 @@ class ScheduleReportRequest(BaseModel):
     email_to: EmailStr = Field(..., example="user@example.com") # type: ignore
     day_of_month: int = Field(default=1, ge=1, le=31, description="Day of the month to trigger the email")
     hour: int = Field(default=9, ge=0, le=23, description="Hour of the day (0-23)")
+
+class ShortTermProjection(BaseModel):
+    estimativa_proximo_rendimento: float = Field(
+        ..., description="Projeção do próximo dividendo por cota em R$"
+    )
+    yield_mensal_estimado_percent: float = Field(
+        ..., description="Dividend Yield mensal projetado em %"
+    )
+    tendencia_30d: str = Field(
+        ..., description="Tendência para os próximos 30 dias: 'Alta', 'Neutra' ou 'Baixa'"
+    )
+    gatilhos_imediatos: list[str] = Field(
+        ..., description="Fatos do relatório ou notícias com impacto no curto prazo"
+    )
+
+class MediumTermValuation(BaseModel):
+    preco_justo_min: float = Field(
+        ..., description="Limite inferior da faixa de preço justo de 12M em R$"
+    )
+    preco_justo_max: float = Field(
+        ..., description="Limite superior da faixa de preço justo de 12M em R$"
+    )
+    upside_downside_percent: float = Field(
+        ..., description="Potencial de valorização/desvalorização sobre o preço atual em %"
+    )
+    tendencia_12m: str = Field(
+        ..., description="Tendência estrutural para 12 meses: 'Alta', 'Neutra' ou 'Baixa'"
+    )
+    tese_investimento: str = Field(
+        ..., description="Síntese da tese cruzando Valuation, DRE e contexto de mercado"
+    )
+
+class ValuationPredictionResponse(BaseModel):
+    ticker: str
+    preco_atual: Decimal
+    pvp_atual: Decimal
+    curto_prazo: ShortTermProjection
+    medio_prazo: MediumTermValuation
+    sinal_recomendacao: str = Field(
+        ..., description="Sinal consolidado: 'Compra Forte', 'Compra', 'Aguardar/Neutro' ou 'Venda'"
+    )
+    riscos_monitorados: list[str] = Field(
+        ..., description="Principais riscos mapeados nos relatórios e notícias"
+    )
+
+class QuantitativeValuationResult(BaseModel):
+    ddm_fair_price: Decimal
+    pvp_mean_reversion_price: Decimal
+    annualized_dpu: Decimal
+    yield_spread_percent: Decimal

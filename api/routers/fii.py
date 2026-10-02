@@ -7,11 +7,13 @@ from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 from application.use_cases.send_email_report import SendEmailReport
 from application.use_cases.export_price_history_fii import ExportPriceHistoryFiiUseCase
+from application.use_cases.predict_valuation_fii import PredictValuationFiiUseCase
 from infrastructure.email_service import EmailService
 from communication.dtos import (
     SendReportEmailRequest,
     ScheduleReportRequest,
-    RealStateFundResponse
+    RealStateFundResponse,
+    ValuationPredictionResponse
 )
 
 from infrastructure.scheduler_service import SchedulerService
@@ -24,7 +26,7 @@ def get_scheduler_service() -> SchedulerService:
     from api.main import scheduler_service
     return scheduler_service
 
-@router.get("/{ticker}/indicators")
+@router.get("/{ticker}/indicators", response_model=RealStateFundResponse)
 def get_indicators(
     ticker: str,
     force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache diário e refaz o scraping"),
@@ -114,3 +116,15 @@ def get_price_history_csv(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+
+@router.get(
+    "/{ticker}/valuation-prediction",
+    response_model=ValuationPredictionResponse,
+    summary="Previsão de Preço e Valuation de Curto e Médio Prazo",
+)
+def predict_valuation(
+    ticker: str,
+) -> ValuationPredictionResponse:
+    """Endpoint que retorna a análise preditiva unificada (30 dias e 12 meses) com base em RAG e Valuation Financeiro."""
+    use_case = PredictValuationFiiUseCase()
+    return use_case.execute(ticker=ticker)

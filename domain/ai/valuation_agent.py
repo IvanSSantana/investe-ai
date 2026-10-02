@@ -1,0 +1,67 @@
+import logging
+from typing import Any
+
+from agno.agent import Agent
+from agno.knowledge import Knowledge
+from agno.models.ollama import Ollama
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.yfinance import YFinanceTools
+
+from communication.dtos import QuantitativeValuationResult, ValuationPredictionResponse
+
+logger = logging.getLogger(__name__)
+
+class ValuationAgent:
+    """Agent responsible for fusing quantitative metrics, report RAG, and market web searches."""
+
+    VALUATION_INSTRUCTIONS = [
+        "Você é um analista sênior de Fundos de Investimento Imobiliário (FIIs).",
+        "Sua tarefa é sintetizar uma recomendação e predição de preço unificando dados quantitativos, relatórios gerenciais e notícias recentes.",
+        "Utilize a ferramenta de busca para encontrar notícias recentes sobre o fundo e a taxa Selic.",
+        "Sempre considere o preço justo calculado pelo DDM e pela reversão do P/VP como âncoras numéricas centrais.",
+        "Para a projeção de curto prazo (30 dias), analise a regularidade do dividendo e eventos iminentes (vacância, rescisão, venda de imóveis).",
+        "Para o médio prazo (12M), defina uma faixa de preço justo [min, max] baseada no P/VP de equilíbrio e DDM.",
+        "NUNCA invente dividendos ou cotações que não estejam no contexto recebido.",
+        "Retorne ESTRITAMENTE o JSON correspondente ao schema especificado.",
+    ]
+
+    def __init__(self, model_id: str = "qwen3:8b"):
+        self._model_id = model_id
+
+    def run(
+        self,
+        ticker: str,
+        current_price: float,
+        pvp: float,
+        quantitative_result: QuantitativeValuationResult,
+        knowledge_db: Knowledge,
+    ) -> ValuationPredictionResponse:
+        """Executes the valuation agent synthesis."""
+        logger.info(f"Running ValuationAgent for {ticker}...")
+
+        agent = Agent(
+            role="Analista de Valuation de FIIs",
+            knowledge=knowledge_db,
+            search_knowledge=True,
+            tools=[DuckDuckGoTools()],
+            add_knowledge_to_context=True,
+            instructions=self.VALUATION_INSTRUCTIONS,
+            model=Ollama(id=self._model_id, options={"temperature": 0.1}),
+            output_schema=ValuationPredictionResponse,
+            debug_mode=False,
+        )
+
+        prompt = (
+            f"Elabore o relatório preditivo e valuation para o FII {ticker}.\n\n"
+            f"DADOS NUMÉRICOS ATUAIS:\n"
+            f"- Preço Atual: R$ {current_price}\n"
+            f"- P/VP Atual: {pvp}\n"
+            f"- DPU Anualizado Estimado: R$ {quantitative_result.annualized_dpu}\n"
+            f"- Preço Justo DDM (Desconto de Dividendos): R$ {quantitative_result.ddm_fair_price}\n"
+            f"- Preço Teórico por Reversão P/VP: R$ {quantitative_result.pvp_mean_reversion_price}\n"
+            f"- Spread de Yield vs Taxa de Desconto: {quantitative_result.yield_spread_percent}%\n\n"
+            f"Instrução: Consulte o RAG do relatório gerencial do {ticker} e busque na web notícias recentes para concluir o schema."
+        )
+
+        response = agent.run(prompt)
+        return response.content  # type: ignore
