@@ -139,6 +139,42 @@ class ScrapingService:
             link for card in cards
             if (link := self._extract_recent_pdf_link(card)) is not None
         ]
+    
+    def extract_historical_mean_pvp(self, soup: BeautifulSoup) -> float:
+        try:
+            table = search_one_element_verifier(soup, "table#table-indicators-history")
+
+            rows = table.find_all("tr")
+            for row in rows:
+                indicator_td = row.find("td", class_="indicator")
+                if indicator_td and "P/VP" in indicator_td.text:
+                    value_tds = row.find_all("td", class_="value")
+                    pvp_history: list[float] = []
+
+                    for td in value_tds:
+                        text_val = td.text.strip().replace(",", ".")
+                        try:
+                            val = float(text_val)
+                            pvp_history.append(val)
+                        except ValueError:
+                            logger.warning(f"Invalid P/VP value encountered: {text_val}. Skipping this value.")
+                            continue
+
+                    if pvp_history:
+                        mean_pvp = round(sum(pvp_history) / len(pvp_history), 2)
+                        logger.info(
+                            f"P/VP historic: {pvp_history} | Mean: {mean_pvp}"
+                        )
+                        return mean_pvp
+
+            logger.warning(
+                "Line with P/VP not found in the historical indicators table. Returning default value of 1.0."
+            )
+            return 1.0
+
+        except Exception as exc:
+            logger.error(f"Error while extracting P/VP history: {exc}")
+            return 1.0
 
     def _fetch_soup(self, url: str) -> BeautifulSoup:
         response = requests.get(url, headers=self.HEADERS)
@@ -216,7 +252,7 @@ class ScrapingService:
             return BeautifulSoup(driver.page_source, "html.parser")
 
         except Exception:
-            logger.warning(f"A tabela de histórico de indicadores não carregou a tempo. URL: {url}")
+            logger.warning(f"The historical indicators table did not load in time. URL: {url}")
             return BeautifulSoup("", "html.parser")
 
         finally:
@@ -243,7 +279,7 @@ class ScrapingService:
 
             return values[0].get_text(" ", strip=True)
 
-        logger.warning(f"Indicador '{indicator}' não encontrado (table_selector: {table_selector})")
+        logger.warning(f"Indicator '{indicator}' not found (table_selector: {table_selector})")
         return None
 
     def _extract_price_variation(self, url: str, period: str) -> Decimal | None:
@@ -281,7 +317,7 @@ class ScrapingService:
             return price_sanitizer(variation_text)
 
         except Exception:
-            logger.exception(f"Erro ao extrair variação de {types[period]} dias. URL: {url}")
+            logger.exception(f"Error while extracting {types[period]} days variation. URL: {url}")
             return None
 
         finally:

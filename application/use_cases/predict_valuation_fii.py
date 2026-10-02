@@ -3,6 +3,7 @@ import logging
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 from communication.dtos import RealStateFundResponse, ValuationPredictionResponse
 from domain.ai.ai_service import AiService
+from domain.scraping.scraping_service import ScrapingService
 from infrastructure.market_data_service import MarketDataService
 from infrastructure.yfinance_service import YFinanceService
 
@@ -17,11 +18,13 @@ class PredictValuationFiiUseCase:
         get_indicators_use_case: GetIndicatorsFiiUseCase = GetIndicatorsFiiUseCase(),
         yfinance_service: YFinanceService = YFinanceService(),
         market_data_service: MarketDataService = MarketDataService(),
+        scraping_service: ScrapingService = ScrapingService(),
     ):
         self._ai_service = ai_service
         self._get_indicators_use_case = get_indicators_use_case
         self._yfinance_service = yfinance_service
         self._market_data_service = market_data_service
+        self._scraping_service = scraping_service
 
     def execute(self, ticker: str) -> ValuationPredictionResponse:
         """Fetches dynamic indicators, historical series, risk-free rate, and executes valuation pipeline."""
@@ -59,6 +62,8 @@ class PredictValuationFiiUseCase:
 
         risk_free_rate = self._market_data_service.get_current_risk_free_rate()
 
+        historical_mean_pvp = self._scraping_service.extract_historical_mean_pvp(ticker_upper)
+
         return self._ai_service.predict_valuation(
             ticker=ticker_upper,
             current_price=current_price,
@@ -66,4 +71,5 @@ class PredictValuationFiiUseCase:
             pvp=pvp,
             recent_dpus=recent_dpus,
             risk_free_rate=risk_free_rate,
+            historical_mean_pvp=historical_mean_pvp
         )
