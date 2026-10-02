@@ -75,7 +75,6 @@ class ScrapingService:
     def search_stock_indicators(self, ticker: str) -> StockResponse:
         url = self.BASE_URL.format(type="acoes", ticker=ticker)
         soup = self._fetch_soup(url)
-        driver = self._driver_factory()
 
         site_ticker = search_one_element_verifier(soup, ".name-ticker h1").get_text(strip=True)
         price = price_sanitizer(
@@ -140,7 +139,10 @@ class ScrapingService:
             if (link := self._extract_recent_pdf_link(card)) is not None
         ]
     
-    def extract_historical_mean_pvp(self, soup: BeautifulSoup) -> float:
+    def extract_historical_mean_pvp(self, ticker: str) -> float:
+        url = self.BASE_URL.format(type="fiis", ticker=ticker)
+        soup = self._fetch_history_table_soup(url)
+
         try:
             table = search_one_element_verifier(soup, "table#table-indicators-history")
 

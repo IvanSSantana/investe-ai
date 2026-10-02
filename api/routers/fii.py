@@ -124,7 +124,8 @@ def get_price_history_csv(
 )
 def predict_valuation(
     ticker: str,
+    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache mensal e refaz a previsão"),
 ) -> ValuationPredictionResponse:
     """Endpoint que retorna a análise preditiva unificada (30 dias e 12 meses) com base em RAG e Valuation Financeiro."""
     use_case = PredictValuationFiiUseCase()
-    return use_case.execute(ticker=ticker)
+    return use_case.execute(ticker=ticker, force_refresh=force_refresh)
