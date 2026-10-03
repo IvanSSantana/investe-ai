@@ -122,7 +122,7 @@ class ScrapingService:
             **self._extract_real_state_numeric_indicators(url)
         )
 
-    def search_pdfs(self, ticker: str, asset_type: str) -> list[str]:
+    def search_last_report(self, ticker: str, asset_type: str) -> str:
         """Returns PDFs links from announcements published in the last month.
 
         Args:
@@ -138,7 +138,7 @@ class ScrapingService:
         return [
             link for card in cards
             if (link := self._extract_recent_pdf_link(card)) is not None
-        ]
+        ][0]
     
     def extract_historical_mean_pvp(self, ticker: str) -> float:
         url = self.BASE_URL.format(type="fiis", ticker=ticker)
@@ -348,6 +348,6 @@ if __name__ == "__main__":
     service = ScrapingService()
     # indicadores = service.search_stock_indicators('PETR4')
     # indicators = service.search_real_state_fund_indicators('GARE11')
-    pdf_links = service.search_pdfs('GARE11', 'fiis')
+    pdf_links = service.search_last_report('GARE11', 'fiis')
 
     print(pdf_links)

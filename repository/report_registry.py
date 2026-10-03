@@ -6,10 +6,10 @@ REGISTRY_PATH = Path("reports_db") / "registry.json"
 
 class ReportRecord(NamedTuple):
     report_path: Path
-    source_pdfs: list[str]
+    source_pdf: str
 
 class ReportRegistry:
-    """Tracks which source PDFs generated each ticker's last saved report,
+    """Tracks which source PDF generated each ticker's last saved report,
     so the pipeline can skip regeneration when nothing actually changed.
     """
 
@@ -23,14 +23,14 @@ class ReportRegistry:
 
         return ReportRecord(
             report_path=Path(entry["report_path"]),
-            source_pdfs=entry["source_pdfs"]
+            source_pdf=entry["source_pdf"]
         )
 
-    def record_generation(self, ticker: str, report_path: Path, source_pdfs: list[str]) -> None:
+    def record_generation(self, ticker: str, report_path: Path, source_pdf: str) -> None:
         data = self._read()
         data[ticker.upper()] = {
             "report_path": str(report_path),
-            "source_pdfs": source_pdfs,
+            "source_pdf": source_pdf,
         }
         self._write(data)
 

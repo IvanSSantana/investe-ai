@@ -7,6 +7,7 @@ from domain.ai.vectorstore import VectorstoreService
 from domain.files import report_builder, url_redirect_resolver
 from domain.scraping.scraping_service import ScrapingService
 from repository.report_registry import ReportRegistry
+from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 
 from communication.exceptions import NoDataForExportError, PDFDownloadFailedException
 
@@ -19,48 +20,50 @@ class GenerateReportFiiUseCase:
         scraping_service: ScrapingService = ScrapingService(),
         vectorstore_service: VectorstoreService = VectorstoreService(),
         report_registry: ReportRegistry = ReportRegistry(),
+        get_indicators_use_case: GetIndicatorsFiiUseCase = GetIndicatorsFiiUseCase()
     ):
         self._scraping_service = scraping_service
         self._vectorstore_service = vectorstore_service
         self._ai_service = ai_service if ai_service else AiService(self._vectorstore_service)
         self._report_registry = report_registry
+        self._get_indicators_use_case = get_indicators_use_case
 
     def execute(self, ticker: str, force_refresh: bool = False) -> Path:
         """
         Executes report generation or fetches from cache if valid.
         """
         logger.info(f"Generating new report for {ticker.upper()}")
-        pdf_urls = self._scraping_service.search_pdfs(ticker, asset_type="fiis")
+        pdf_url = self._scraping_service.search_last_report(ticker, asset_type="fiis")
 
-        if not pdf_urls:
+        if not pdf_url:
             raise NoDataForExportError(f"No recent announcements found for {ticker} — no report will be generated.")
 
         if not force_refresh:
-            cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
+            cached_report = self._get_cached_report_if_unchanged(ticker, pdf_url)
             if cached_report is not None:
                 logger.warning(f"Report for {ticker} is up-to-date. Returning cached report at {cached_report}.")
                 return cached_report
 
-        return self._generate_new_report(ticker, pdf_urls)
+        return self._generate_new_report(ticker, pdf_url)
 
-    def _get_cached_report_if_unchanged(self, ticker: str, pdf_urls: list[str]) -> Path | None:
+    def _get_cached_report_if_unchanged(self, ticker: str, pdf_url: str) -> Path | None:
         last_generation = self._report_registry.get_last_generation(ticker)
 
         if last_generation is None:
             return None
 
-        if set(last_generation.source_pdfs) != set(pdf_urls):
+        if last_generation.source_pdf != pdf_url:
             return None  
 
         return last_generation.report_path
 
-    def _generate_new_report(self, ticker: str, pdf_urls: list[str]) -> Path:
-        fund = self._scraping_service.search_real_state_fund_indicators(ticker)
+    def _generate_new_report(self, ticker: str, pdf_url: str) -> Path:
+        fund = self._get_indicators_use_case.execute(ticker)
 
         vector_db = self._vectorstore_service.build_vectorstore(ticker)
         knowledge = self._vectorstore_service.get_or_create_knowledge(vector_db, ticker)
 
-        for url in pdf_urls:
+        for url in pdf_url:
             url = url_redirect_resolver.execute(url)
             if url:
                 self._vectorstore_service.insert_to_db(knowledge, url, ticker)
@@ -74,7 +77,7 @@ class GenerateReportFiiUseCase:
         markdown = report_builder.generate_markdown_report(fund, events, conclusion)
         report_path = report_builder.save_markdown_report(markdown, ticker)
 
-        self._report_registry.record_generation(ticker, report_path, pdf_urls)
+        self._report_registry.record_generation(ticker, report_path, pdf_url)
 
         return report_path
 

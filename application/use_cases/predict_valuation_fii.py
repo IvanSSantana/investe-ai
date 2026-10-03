@@ -104,9 +104,9 @@ class PredictValuationFiiUseCase:
 
     def _get_management_reports(self, ticker_upper: str) -> None:
         """Searches recent management reports and indexes them into the RAG knowledge base."""
-        pdf_urls = self._scraping_service.search_pdfs(ticker_upper, asset_type="fiis")
+        pdf_url = self._scraping_service.search_last_report(ticker_upper, asset_type="fiis")
 
-        if not pdf_urls:
+        if not pdf_url:
             logger.warning(
                 f"No recent management reports found for {ticker_upper}. "
                 "Valuation will run over whatever is already indexed in the RAG."
@@ -116,10 +116,9 @@ class PredictValuationFiiUseCase:
         vector_db = self._vectorstore_service.build_vectorstore(ticker_upper)
         knowledge = self._vectorstore_service.get_or_create_knowledge(vector_db, ticker_upper)
 
-        for url in pdf_urls:
-            resolved_url = url_redirect_resolver.execute(url)
-            if resolved_url:
-                self._vectorstore_service.insert_to_db(knowledge, resolved_url, ticker_upper)
+        resolved_url = url_redirect_resolver.execute(pdf_url)
+        if resolved_url:
+            self._vectorstore_service.insert_to_db(knowledge, resolved_url, ticker_upper)
 
     def _serve_cached_prediction(self, cache_file: Path, ticker_upper: str) -> ValuationPredictionResponse:
         payload = json.loads(cache_file.read_text(encoding="utf-8"))
