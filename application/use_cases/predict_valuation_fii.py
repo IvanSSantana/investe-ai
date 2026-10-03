@@ -62,7 +62,7 @@ class PredictValuationFiiUseCase:
         current_price = Decimal(str(indicators.price))  
         vp_per_share = Decimal(str(indicators.asset_value))
 
-        pvp = round(current_price / vp_per_share, 2)
+        pvp = Decimal(str(indicators.pvp))  
 
         history = self._yfinance_service.get_price_history(f"{ticker_upper}.SA")
 

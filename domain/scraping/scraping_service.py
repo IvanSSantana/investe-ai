@@ -61,6 +61,7 @@ class ScrapingService:
         "liquidity": "Liquidez Diária",
         "vacancy_rate": "Vacância",
         "asset_value": "Valor Patrimonial",
+        "pvp": "P/VP"
     }
 
     REAL_STATE_TEXT_INDICATOR_FIELS: dict[str, str] = {
