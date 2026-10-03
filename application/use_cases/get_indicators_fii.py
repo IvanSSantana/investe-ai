@@ -33,7 +33,7 @@ class GetIndicatorsFiiUseCase:
         if not force_refresh and cache_file.exists():
             logger.info(f"Serving indicators for {ticker_upper} from daily cache ({cache_file.name})")
             with open(cache_file, "r", encoding="utf-8") as file:
-                return json.load(file)
+                return RealStateFundResponse.model_validate_json(file.read())
 
         logger.info(f"Fetching fresh indicators for {ticker_upper} via scraping")
         data = self.scraping_service.search_real_state_fund_indicators(ticker_upper)

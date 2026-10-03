@@ -204,7 +204,7 @@ class VectorstoreService:
         return Knowledge(
             name=f"fii_{ticker.lower()}",
             vector_db=vector_db,
-            max_results=30,
+            max_results=3,
         )
 
     def insert_to_db(self, knowledge: Knowledge, file_url: str, ticker: str) -> None:
