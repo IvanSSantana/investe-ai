@@ -2,6 +2,7 @@ import logging
 
 from agno.agent import Agent
 from agno.models.ollama import Ollama
+from agno.models.groq import Groq
 from agno.tools.yfinance import YFinanceTools
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class ConclusionAgent:
             return None
 
         agent = Agent(
-            model=Ollama(id=self._model_id, options={"temperature": 0.1}),
+            model=Groq(temperature=0.1),
             tools=[
                 YFinanceTools(
                     enable_company_news=True,

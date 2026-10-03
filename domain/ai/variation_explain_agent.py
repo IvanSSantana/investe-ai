@@ -3,6 +3,7 @@ from typing import Any
 
 from agno.agent import Agent
 from agno.models.ollama import Ollama
+from agno.models.groq import Groq
 from agno.knowledge import Knowledge
 from ddgs import DDGS
 
@@ -19,7 +20,7 @@ class VariationExplainAgent:
     ):
         self._vectorstore_service = vectorstore_service 
         self._agent = Agent(
-            model=Ollama(id="qwen3:8b", options={"temperature": 0.17}),
+            model=Groq(temperature=0.1),
             instructions=[
                 "Você é um analista financeiro sênior especializado em Fundos Imobiliários (FIIs) no Brasil.",
                 "Sua tarefa é explicar sucintamente o motivo da variação atípica do preço de um FII em um mês específico.",

@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -12,7 +13,11 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 
 from agno.agent import Agent
 from agno.models.ollama import Ollama
+from agno.models.groq import Groq
 from pydantic import BaseModel, Field
+
+from helpers.ai.ai_json_sanitizer import ai_json_sanitizer
+from helpers.ai.json_prompt import PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +60,12 @@ class VectorstoreService:
     builds the DB, inserts documents (fine-grained chunks via SemanticChunking), and
     runs the event extraction agent.
     """
+
+    schema_str = json.dumps(
+            EventListResponse.model_json_schema(), 
+            ensure_ascii=False, 
+            indent=2
+        )
 
     EXTRACTION_INSTRUCTIONS = [
         "# PAPEL",
@@ -121,6 +132,7 @@ class VectorstoreService:
         "Saída esperada: {\"eventos\": []}",
         "Justificativa: nada acima é uma ação/decisão nova do período; é descrição estrutural "
         "do fundo e uma reunião de rotina sem consequência econômica relatada.",
+        f"{PROMPT.format(json_schema=schema_str)}"
     ]
 
     def __init__(self, db_path: str = "./rag_db", md_cache_dir: str = "md_cache"):
@@ -209,7 +221,7 @@ class VectorstoreService:
 
         logger.info("File inserted successfully.")
 
-    def extract_events_from_document(self, query: str, knowledge_db: Knowledge) -> list[dict]:
+    def extract_events_from_document(self, prompt: str, knowledge_db: Knowledge) -> EventListResponse:
         """The extraction agent runs on a entire document."""
         agent = Agent(
             role="Extrator de eventos corporativos",
@@ -217,16 +229,17 @@ class VectorstoreService:
             search_knowledge=True,
             add_knowledge_to_context=True,
             instructions=self.EXTRACTION_INSTRUCTIONS,
-            model=Ollama(id="qwen3:8b", options={"temperature": 0.07}),
-            output_schema=EventListResponse,
+            model=Groq(temperature=0.1),
             debug_mode=True,
             debug_level=2
         )
 
-        response = agent.run(query)
-        events = response.content.eventos # type: ignore
+        response = agent.run(prompt)
+        raw_response_text = str(response.content)
 
-        return [event.model_dump() for event in events]
+        clean_json = ai_json_sanitizer(raw_response_text)
+        
+        return EventListResponse.model_validate_json(clean_json)
 
 if __name__ == "__main__":
     TICKER = "MXRF11"
@@ -239,7 +252,7 @@ if __name__ == "__main__":
     service.insert_to_db(knowledge=knowledge, file_url=pdf_url, ticker=TICKER)
 
     events = service.extract_events_from_document(
-            query=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
+            prompt=f"Cite ATÉ 10 eventos importantes para a cota do {TICKER}",
         knowledge_db=knowledge,
     )
     import json

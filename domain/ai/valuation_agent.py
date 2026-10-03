@@ -1,18 +1,28 @@
+import json
 import logging
 from decimal import Decimal
 
 from agno.agent import Agent
 from agno.knowledge import Knowledge
 from agno.models.ollama import Ollama
+from agno.models.groq import Groq
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.yfinance import YFinanceTools
 
 from communication.dtos import QuantitativeValuationResult, ValuationPredictionResponse
+from helpers.ai.ai_json_sanitizer import ai_json_sanitizer
+from helpers.ai.json_prompt import PROMPT
 
 logger = logging.getLogger(__name__)
 
 class ValuationAgent:
     """Agent responsible for fusing quantitative metrics, report RAG, and market web searches."""
+
+    schema_str = json.dumps(
+        ValuationPredictionResponse.model_json_schema(), 
+        ensure_ascii=False, 
+        indent=2
+    )
 
     VALUATION_INSTRUCTIONS = [
         "Você é um analista sênior de Fundos de Investimento Imobiliário (FIIs).",
@@ -23,6 +33,8 @@ class ValuationAgent:
         "Para o médio prazo (12M), defina uma faixa de preço justo [min, max] baseada no P/VP de equilíbrio e DDM.",
         "NUNCA invente dividendos ou cotações que não estejam no contexto recebido.",
         "Retorne ESTRITAMENTE o JSON correspondente ao schema especificado.",
+        "Siga SEMPRE o esquema a seguir: \n",
+        f"{PROMPT.format(json_schema=schema_str)}"
     ]
 
     def __init__(self, model_id: str = "qwen3:8b"):
@@ -43,11 +55,11 @@ class ValuationAgent:
             role="Analista de Valuation de FIIs",
             knowledge=knowledge_db,
             search_knowledge=True,
-            tools=[DuckDuckGoTools()],
+            tools=[DuckDuckGoTools(), YFinanceTools(enable_analyst_recommendations=True, enable_company_news=True)],
             add_knowledge_to_context=True,
             instructions=self.VALUATION_INSTRUCTIONS,
-            model=Ollama(id=self._model_id, options={"temperature": 0.1}),
-            output_schema=ValuationPredictionResponse,
+            model=Groq(temperature=0.1),
+            # output_schema=ValuationPredictionResponse,
             debug_mode=False,
         )
 
@@ -64,4 +76,8 @@ class ValuationAgent:
         )
 
         response = agent.run(prompt)
-        return response.content  # type: ignore
+        raw_response_text = str(response.content)
+
+        clean_json = ai_json_sanitizer(raw_response_text)
+        
+        return ValuationPredictionResponse.model_validate_json(clean_json)
