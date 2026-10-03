@@ -57,27 +57,70 @@ class VectorstoreService:
     """
 
     EXTRACTION_INSTRUCTIONS = [
-        "Extrair ATÉ 10 eventos corporativos mais relevantes e impactantes do relatório gerencial, priorizando eventos que realmente possam afetar a percepção do investidor, os resultados da empresa ou o valor do ativo.",
-        "Ignore nomes de pessoas, incluindo cargos e eleições.",
-        "Preserve todos os valores numéricos, percentuais, datas, indicadores e quantias monetárias.",
-        "Foque somente em movimentos, decisões, resultados e mudancas da empresa.",
-        "Priorize eventos que envolvam estatísticas, números, indicadores, resultados e decisões.",
-        "Os impactos também podem ser negativos.",
-        "Considere relevante somente o que tiver impacto econômico concreto e atual como lucro, dívida, dividendos, expansão, risco jurídico/regulatório etc.",
-        "Ignore eventos burocráticos, societários, administrativos como assembléias, reuniões, eleições, comitês, comunicados protocolares etc. ou voltados ao público como Investor Day, a menos que o texto explicite uma consequência econômica objetiva e material.",
-        "NUNCA crie ou invente dados, acontecimentos.",
-        "Indique nos impactos como os eventos impactaram direta ou indiretamente o preço do ativo. Ex: 'Indica saúde financeira, provável ascenção de preço.'.",
-        "Classifique a importância de cada evento numa escala de 1 a 10, onde 1 = altíssimo impacto econômico e 10 = impacto praticamente nulo. Todos os eventos de uma mesmo relatório devem ter importancias diferentes entre si.",
-        "Se a seção referenciar algo que parece incompleto, cortado, ou remeter a outra parte do documento (ex.: 'conforme mencionado', 'ver nota X', um valor sem sua base de comparacao), use a busca no conhecimento para complementar antes de finalizar a extração.",
-        "Especifique dados concretos como nomes de empresas parceiras, nomes de produtos lançados, nomes de imóveis comprados etc. na descrição do evento.",
-        "Um EVENTO válido é uma ação, decisão ou ocorrência NOVA relatada especificamente para o período coberto por este relatório -- ex.: compra ou venda de um imóvel nomeado, renegociação ou rescisão de contrato com um locatário nomeado, mudança de gestor, emissão de cotas, captação de recursos, litígio novo.",
-        "NÃO é um evento: informação descritiva ou estrutural do fundo que não muda mês a mês -- ex.: 'o fundo é do segmento logístico', 'a gestão é ativa', 'o fundo investe em lajes corporativas'.",
-        "Se não houver um evento adequado para preencher alguma categoria, NÃO invente um evento genérico ou descritivo só para preenchê-la. Retornar menos de 10 eventos é permitido.",
-        "O TÍTULO de cada evento deve SEMPRE seguir o padrão 'Ação: Detalhe específico' -- ex.: 'Aquisição de imóvel: Shopping Park Sul', 'Renegociação de contrato: Locatário XPTO', 'Emissão de cotas: 5ª emissão, R$ 200 milhões'. NUNCA use títulos genéricos como 'Resultado do fundo' ou 'Atualização financeira'.",
-        "SEMPRE retorne SOMENTE JSON válido.",
-        "SEMPRE defina o campo 'categoria' com algum elemento da lista a seguir:",
+        "# PAPEL",
+        "Você extrai eventos corporativos de relatórios gerenciais de FIIs para investidores.",
+
+        "# O QUE É UM EVENTO",
+        "Uma ação, decisão ou ocorrência NOVA do período coberto por ESTE relatório.",
+        "Exemplos: compra/venda de imóvel nomeado, renegociação ou rescisão de contrato com "
+        "locatário nomeado, emissão de cotas, mudança de gestor, captação de recursos, litígio novo.",
+        "Preserve todos os valores numéricos, percentuais, datas e nomes citados no texto.",
+
+        "# O QUE NÃO É UM EVENTO",
+        "Informação descritiva ou estrutural que não muda mês a mês (segmento do fundo, "
+        "estratégia geral, composição histórica).",
+        "Nomes de pessoas, cargos, eleições, assembleias ou comunicados protocolares sem "
+        "consequência econômica objetiva e material.",
+
+        "# FORMATO DO TÍTULO",
+        "SEMPRE 'Ação: Detalhe específico'. NUNCA um título genérico.",
+        "Correto: 'Aquisição de imóvel: Shopping Park Sul'. Errado: 'Resultado do fundo'.",
+
+        "# REGRA MAIS IMPORTANTE",
+        "Uma lista vazia é SEMPRE preferível a um evento inventado, genérico ou descritivo. "
+        "Se nenhum evento do texto se encaixar nas regras acima, retorne eventos: [].",
+
+        "# OUTRAS REGRAS",
+        "Extraia ATÉ 10 eventos, no máximo 1 por categoria, mais relevantes e impactantes.",
+        "Classifique 'importancia' de 1 (altíssimo impacto) a 10 (impacto praticamente nulo); "
+        "eventos do mesmo relatório devem ter importâncias diferentes entre si.",
+        "No campo 'impacto', explique como o evento afeta o preço do ativo, "
+        "ex.: 'Indica saúde financeira, provável ascensão de preço.'.",
+        "Se a seção referenciar algo incompleto ou remeter a outra parte do documento "
+        "(ex.: 'conforme mencionado', 'ver nota X'), use a busca no conhecimento antes de finalizar.",
+        "SEMPRE defina 'categoria' com um item exato da lista abaixo:",
         CATEGORIES_STR,
-        "SEMPRE priorize 1 evento de cada categoria, isto é, evite repetir eventos de uma mesma categoria, a menos que não haja suficientes ou adequados."
+        "SEMPRE retorne SOMENTE JSON válido, no schema fornecido.",
+
+        "# EXEMPLOS",
+        "## Exemplo 1 — texto com eventos",
+        "Texto: 'Durante o mês, o fundo concluiu a venda do imóvel Galpão Industrial Anhanguera "
+        "por R$ 18,5 milhões, 8% acima do valor contábil. Adicionalmente, foi renegociado o "
+        "contrato com o locatário Magazine Fort, com reajuste de 12% no aluguel a partir de "
+        "novembro.'",
+        "Saída esperada:\n"
+        '{"eventos": [\n'
+        '  {"titulo": "Venda de imóvel: Galpão Industrial Anhanguera", '
+        '"descricao": "Fundo vendeu o imóvel por R$ 18,5 milhões, 8% acima do valor contábil.", '
+        '"impacto": "Realização de ganho de capital acima do valor contábil; tende a sinalizar '
+        'gestão ativa e pode impactar positivamente o preço da cota.", '
+        '"importancia": 3, '
+        '"categoria": "Carteira de ativos: aquisições, vendas e composição atual"},\n'
+        '  {"titulo": "Renegociação de contrato: Locatário Magazine Fort", '
+        '"descricao": "Reajuste de 12% no valor do aluguel a partir de novembro.", '
+        '"impacto": "Aumento de receita recorrente de locação; tende a melhorar o resultado e '
+        'sustentar distribuições futuras.", '
+        '"importancia": 4, '
+        '"categoria": "Vacância física e financeira, e negociações de locação/renovação"}\n'
+        "]}",
+
+        "## Exemplo 2 — texto sem eventos",
+        "Texto: 'O fundo atua no segmento de lajes corporativas, com gestão ativa, buscando "
+        "sempre maximizar a geração de valor aos cotistas. O comitê de investimentos se reuniu "
+        "conforme calendário ordinário.'",
+        "Saída esperada: {\"eventos\": []}",
+        "Justificativa: nada acima é uma ação/decisão nova do período; é descrição estrutural "
+        "do fundo e uma reunião de rotina sem consequência econômica relatada.",
     ]
 
     def __init__(self, db_path: str = "./rag_db", md_cache_dir: str = "md_cache"):

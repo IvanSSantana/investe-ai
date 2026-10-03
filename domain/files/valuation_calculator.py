@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from decimal import Decimal
 
 from communication.dtos import QuantitativeValuationResult
 
@@ -8,33 +8,33 @@ logger = logging.getLogger(__name__)
 class ValuationCalculator:
     """Calculates deterministic financial metrics for FII valuation anchoring."""
 
-    def __init__(self, equity_risk_premium: float = 0.025):
+    def __init__(self, equity_risk_premium: Decimal = Decimal("0.025")):
         self._equity_risk_premium = equity_risk_premium
 
     def calculate(
         self,
-        current_price: float,
-        vp_per_share: float,
-        historical_mean_pvp: float,
-        recent_dpus: list[float],
-        risk_free_rate: float,
+        current_price: Decimal,
+        vp_per_share: Decimal,
+        historical_mean_pvp: Decimal,
+        recent_dpus: list[Decimal],
+        risk_free_rate: Decimal,
     ) -> QuantitativeValuationResult:
         """Computes DDM Fair Price, P/VP Mean Reversion, and Yield Spread using a dynamic discount rate."""
         discount_rate = risk_free_rate + self._equity_risk_premium
         logger.info(f"Computing quantitative valuation with dynamic discount rate: {round(discount_rate * 100, 2)}%")
 
         if not recent_dpus:
-            avg_monthly_dpu = 0.0
+            avg_monthly_dpu = Decimal("0")
         else:
-            avg_monthly_dpu = sum(recent_dpus) / len(recent_dpus)
+            avg_monthly_dpu = Decimal(str(sum(recent_dpus) / len(recent_dpus)))
 
         annualized_dpu = avg_monthly_dpu * 12
 
-        ddm_fair_price = annualized_dpu / discount_rate if discount_rate > 0 else 0.0
+        ddm_fair_price = annualized_dpu / discount_rate if discount_rate > 0 else Decimal("0")
 
         pvp_mean_reversion_price = vp_per_share * historical_mean_pvp
 
-        current_annual_yield = (annualized_dpu / current_price) if current_price > 0 else 0.0
+        current_annual_yield = (annualized_dpu / current_price) if current_price > 0 else Decimal("0")
         yield_spread_percent = (current_annual_yield - discount_rate) * 100
 
         return QuantitativeValuationResult(

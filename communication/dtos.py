@@ -1,5 +1,19 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from decimal import Decimal
+
+from helpers.typing.price_sanitizer import price_sanitizer
+
+def _sanitize_decimal_fields(*field_names: str):
+    """Returns a Pydantic 'before' validator that sanitizes string-typed numeric
+    values (ex.: 'R$ 1.234,56', '12,5%') using price_sanitizer before type coercion."""
+    @field_validator(*field_names, mode="before")
+    @classmethod
+    def _sanitize(cls, value):
+        if isinstance(value, str):
+            return price_sanitizer(value)
+        return value
+    
+    return _sanitize
 
 class StockResponse(BaseModel):
     ticker: str
@@ -46,10 +60,10 @@ class ScheduleReportRequest(BaseModel):
     hour: int = Field(default=9, ge=0, le=23, description="Hour of the day (0-23)")
 
 class ShortTermProjection(BaseModel):
-    estimativa_proximo_rendimento: float = Field(
+    estimativa_proximo_rendimento: Decimal = Field(
         ..., description="Projeção do próximo dividendo por cota em R$"
     )
-    yield_mensal_estimado_percent: float = Field(
+    yield_mensal_estimado_percent: Decimal = Field(
         ..., description="Dividend Yield mensal projetado em %"
     )
     tendencia_30d: str = Field(
@@ -59,14 +73,16 @@ class ShortTermProjection(BaseModel):
         ..., description="Fatos do relatório ou notícias com impacto no curto prazo"
     )
 
+    _sanitize_values = _sanitize_decimal_fields("estimativa_proximo_rendimento", "yield_mensal_estimado_percent")
+
 class MediumTermValuation(BaseModel):
-    preco_justo_min: float = Field(
+    preco_justo_min: Decimal = Field(
         ..., description="Limite inferior da faixa de preço justo de 12M em R$"
     )
-    preco_justo_max: float = Field(
+    preco_justo_max: Decimal = Field(
         ..., description="Limite superior da faixa de preço justo de 12M em R$"
     )
-    upside_downside_percent: float = Field(
+    upside_downside_percent: Decimal = Field(
         ..., description="Potencial de valorização/desvalorização sobre o preço atual em %"
     )
     tendencia_12m: str = Field(
@@ -75,6 +91,8 @@ class MediumTermValuation(BaseModel):
     tese_investimento: str = Field(
         ..., description="Síntese da tese cruzando Valuation, DRE e contexto de mercado"
     )
+
+    _sanitize_values = _sanitize_decimal_fields("preco_justo_min", "preco_justo_max", "upside_downside_percent")
 
 class ValuationPredictionResponse(BaseModel):
     ticker: str
@@ -89,8 +107,14 @@ class ValuationPredictionResponse(BaseModel):
         ..., description="Principais riscos mapeados nos relatórios e notícias"
     )
 
+    _sanitize_values = _sanitize_decimal_fields("preco_atual", "pvp_atual")
+
 class QuantitativeValuationResult(BaseModel):
     ddm_fair_price: Decimal
     pvp_mean_reversion_price: Decimal
     annualized_dpu: Decimal
     yield_spread_percent: Decimal
+
+    _sanitize_values = _sanitize_decimal_fields(
+        "ddm_fair_price", "pvp_mean_reversion_price", "annualized_dpu", "yield_spread_percent"
+    )

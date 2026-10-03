@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from agno.knowledge import Knowledge
 
 from domain.ai.conclusion_agent import ConclusionAgent
@@ -42,12 +44,12 @@ class AiService:
     def predict_valuation(
         self,
         ticker: str,
-        current_price: float,
-        vp_per_share: float,
-        pvp: float,
-        recent_dpus: list[float],
-        risk_free_rate: float = 0.105,
-        historical_mean_pvp: float = 1.0,
+        current_price: Decimal,
+        vp_per_share: Decimal,
+        pvp: Decimal,
+        recent_dpus: list[Decimal],
+        risk_free_rate: Decimal = Decimal("0.105"),
+        historical_mean_pvp: Decimal = Decimal("1.0"),
     ) -> ValuationPredictionResponse:
         ticker_upper = ticker.upper()
 

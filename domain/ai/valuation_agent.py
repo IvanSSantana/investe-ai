@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from decimal import Decimal
 
 from agno.agent import Agent
 from agno.knowledge import Knowledge
@@ -31,8 +31,8 @@ class ValuationAgent:
     def run(
         self,
         ticker: str,
-        current_price: float,
-        pvp: float,
+        current_price: Decimal,
+        pvp: Decimal,
         quantitative_result: QuantitativeValuationResult,
         knowledge_db: Knowledge,
     ) -> ValuationPredictionResponse:

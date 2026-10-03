@@ -59,31 +59,31 @@ class PredictValuationFiiUseCase:
         else:
             indicators = raw_indicators
 
-        current_price = float(indicators.price)  # type: ignore
-        vp_per_share = float(indicators.asset_value) # type: ignore
+        current_price = Decimal(str(indicators.price))  
+        vp_per_share = Decimal(str(indicators.asset_value))
 
         pvp = round(current_price / vp_per_share, 2)
 
         history = self._yfinance_service.get_price_history(f"{ticker_upper}.SA")
 
-        recent_dpus: list[float] = []
+        recent_dpus: list[Decimal] = []
         if not history.empty and "Dividends" in history.columns:
             dividends = history["Dividends"][history["Dividends"] > 0]
             if not dividends.empty:
-                recent_dpus = [float(value) for value in dividends.tail(3).tolist()]
+                recent_dpus = [Decimal(str(value)) for value in dividends.tail(3).tolist()]
 
         if not recent_dpus:
             logger.warning(
                 f"No dividend history found for {ticker_upper}. Estimating DPU from current price and dividend yield."
             )
-            annual_dy_percent = float(indicators.dividend_yield) # type: ignore
+            annual_dy_percent = Decimal(str(indicators.dividend_yield))  
 
-            estimated_monthly_dpu = (current_price * (annual_dy_percent / 100.0)) / 12.0
+            estimated_monthly_dpu = (current_price * (annual_dy_percent / Decimal("100"))) / Decimal("12")
             recent_dpus = [estimated_monthly_dpu]
 
-        risk_free_rate = self._market_data_service.get_current_risk_free_rate()
+        risk_free_rate = Decimal(str(self._market_data_service.get_current_risk_free_rate()))
 
-        historical_mean_pvp = self._scraping_service.extract_historical_mean_pvp(ticker_upper)
+        historical_mean_pvp = Decimal(str(self._scraping_service.extract_historical_mean_pvp(ticker_upper)))
 
         self._get_management_reports(ticker_upper)
 
@@ -124,7 +124,7 @@ class PredictValuationFiiUseCase:
     def _serve_cached_prediction(self, cache_file: Path, ticker_upper: str) -> ValuationPredictionResponse:
         payload = json.loads(cache_file.read_text(encoding="utf-8"))
         prediction = ValuationPredictionResponse(**payload["prediction"])
-        vp_per_share = float(payload.get("vp_per_share") or 0.0)
+        vp_per_share = Decimal(str(payload.get("vp_per_share") or "0"))
 
         return self._refresh_current_price(prediction, ticker_upper, vp_per_share)
 
@@ -132,7 +132,7 @@ class PredictValuationFiiUseCase:
         self,
         prediction: ValuationPredictionResponse,
         ticker_upper: str,
-        vp_per_share: float,
+        vp_per_share: Decimal,
     ) -> ValuationPredictionResponse:
         """Updates only the price-derived numeric fields; LLM-generated texts stay frozen
         as of the generation date."""
@@ -147,11 +147,11 @@ class PredictValuationFiiUseCase:
             logger.warning(f"No current price available for {ticker_upper}. Serving cached prediction as-is.")
             return prediction
 
-        current_price = float(indicators.price)
-        prediction.preco_atual = Decimal(round(current_price, 2))
+        current_price = indicators.price
+        prediction.preco_atual = round(current_price, 2)
 
         if vp_per_share > 0:
-            prediction.pvp_atual = Decimal(round(current_price / vp_per_share, 2))
+            prediction.pvp_atual = round(current_price / vp_per_share, 2)
 
         fair_mid_price = (
             prediction.medio_prazo.preco_justo_min + prediction.medio_prazo.preco_justo_max
@@ -171,11 +171,11 @@ class PredictValuationFiiUseCase:
         self,
         cache_file: Path,
         prediction: ValuationPredictionResponse,
-        vp_per_share: float,
+        vp_per_share: Decimal,
     ) -> None:
         payload = {
             "generated_at": datetime.now().isoformat(timespec="seconds"),
-            "vp_per_share": vp_per_share,
+            "vp_per_share": str(vp_per_share),
             "prediction": prediction.model_dump(mode="json"),
         }
         cache_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -29,24 +29,17 @@ class GenerateReportFiiUseCase:
         """
         Executes report generation or fetches from cache if valid.
         """
-        ticker_upper = ticker.upper()
-        now_str = datetime.now().strftime("%Y_%m")
-        cached_report = Path("pdf_cache") / ticker_upper / f"{ticker_upper}_{now_str}.pdf"
-
-        if not force_refresh and cached_report.exists():
-            logger.info(f"Serving cached report for {ticker_upper}: {cached_report.name}")
-            return cached_report
-
-        logger.info(f"Generating new report for {ticker_upper}")
+        logger.info(f"Generating new report for {ticker.upper()}")
         pdf_urls = self._scraping_service.search_pdfs(ticker, asset_type="fiis")
 
         if not pdf_urls:
             raise NoDataForExportError(f"No recent announcements found for {ticker} — no report will be generated.")
 
-        cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
-        if cached_report is not None:
-            logger.warning(f"Report for {ticker} is up-to-date. Returning cached report at {cached_report}.")
-            return cached_report
+        if not force_refresh:
+            cached_report = self._get_cached_report_if_unchanged(ticker, pdf_urls)
+            if cached_report is not None:
+                logger.warning(f"Report for {ticker} is up-to-date. Returning cached report at {cached_report}.")
+                return cached_report
 
         return self._generate_new_report(ticker, pdf_urls)
 
