@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
+from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 from communication.dtos import RealStateFundResponse, ValuationPredictionResponse
 from domain.ai.ai_service import AiService
@@ -22,6 +23,7 @@ class PredictValuationFiiUseCase:
         self,
         ai_service: AiService = AiService(),
         get_indicators_use_case: GetIndicatorsFiiUseCase = GetIndicatorsFiiUseCase(),
+        generate_report_use_case: GenerateReportFiiUseCase = GenerateReportFiiUseCase(),
         yfinance_service: YFinanceService = YFinanceService(),
         market_data_service: MarketDataService = MarketDataService(),
         scraping_service: ScrapingService = ScrapingService(),
@@ -30,6 +32,7 @@ class PredictValuationFiiUseCase:
     ):
         self._ai_service = ai_service
         self._get_indicators_use_case = get_indicators_use_case
+        self._generate_report_use_case = generate_report_use_case
         self._yfinance_service = yfinance_service
         self._market_data_service = market_data_service
         self._scraping_service = scraping_service
@@ -85,7 +88,7 @@ class PredictValuationFiiUseCase:
 
         historical_mean_pvp = Decimal(str(self._scraping_service.extract_historical_mean_pvp(ticker_upper)))
 
-        self._get_management_reports(ticker_upper)
+        self._generate_report_use_case.execute(ticker_upper)
 
         prediction = self._ai_service.predict_valuation(
             ticker=ticker_upper,
@@ -101,24 +104,6 @@ class PredictValuationFiiUseCase:
         self._save_to_cache(cache_file, prediction, vp_per_share)
 
         return prediction
-
-    def _get_management_reports(self, ticker_upper: str) -> None:
-        """Searches recent management reports and indexes them into the RAG knowledge base."""
-        pdf_url = self._scraping_service.search_last_report(ticker_upper, asset_type="fiis")
-
-        if not pdf_url:
-            logger.warning(
-                f"No recent management reports found for {ticker_upper}. "
-                "Valuation will run over whatever is already indexed in the RAG."
-            )
-            return
-
-        vector_db = self._vectorstore_service.build_vectorstore(ticker_upper)
-        knowledge = self._vectorstore_service.get_or_create_knowledge(vector_db, ticker_upper)
-
-        resolved_url = url_redirect_resolver.execute(pdf_url)
-        if resolved_url:
-            self._vectorstore_service.insert_to_db(knowledge, resolved_url, ticker_upper)
 
     def _serve_cached_prediction(self, cache_file: Path, ticker_upper: str) -> ValuationPredictionResponse:
         payload = json.loads(cache_file.read_text(encoding="utf-8"))

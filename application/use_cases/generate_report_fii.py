@@ -52,7 +52,7 @@ class GenerateReportFiiUseCase:
         if last_generation is None:
             return None
 
-        if last_generation.source_pdf != pdf_url:
+        if last_generation.pdf_url != pdf_url:
             return None  
 
         return last_generation.report_path

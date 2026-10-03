@@ -6,7 +6,7 @@ REGISTRY_PATH = Path("reports_db") / "registry.json"
 
 class ReportRecord(NamedTuple):
     report_path: Path
-    source_pdf: str
+    pdf_url: str
 
 class ReportRegistry:
     """Tracks which source PDF generated each ticker's last saved report,
@@ -23,14 +23,14 @@ class ReportRegistry:
 
         return ReportRecord(
             report_path=Path(entry["report_path"]),
-            source_pdf=entry["source_pdf"]
+            pdf_url=entry["pdf_url"]
         )
 
-    def record_generation(self, ticker: str, report_path: Path, source_pdf: str) -> None:
+    def record_generation(self, ticker: str, report_path: Path, pdf_url: str) -> None:
         data = self._read()
         data[ticker.upper()] = {
             "report_path": str(report_path),
-            "source_pdf": source_pdf,
+            "pdf_url": pdf_url,
         }
         self._write(data)
 
