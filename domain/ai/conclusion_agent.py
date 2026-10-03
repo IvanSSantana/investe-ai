@@ -5,6 +5,8 @@ from agno.models.ollama import Ollama
 from agno.models.groq import Groq
 from agno.tools.yfinance import YFinanceTools
 
+from domain.ai.vectorstore import EventListResponse
+
 logger = logging.getLogger(__name__)
 
 class ConclusionAgent:
@@ -32,7 +34,7 @@ class ConclusionAgent:
     def __init__(self, model_id: str = "qwen3:8b"):
         self._model_id = model_id
 
-    def generate(self, events: list[dict], ticker: str) -> str | None:
+    def generate(self, events: EventListResponse, ticker: str) -> str | None:
         if not events:
             return None
 

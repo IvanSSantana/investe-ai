@@ -34,7 +34,7 @@ class ValuationAgent:
         "NUNCA invente dividendos ou cotações que não estejam no contexto recebido.",
         "Retorne ESTRITAMENTE o JSON correspondente ao schema especificado.",
         "Siga SEMPRE o esquema a seguir: \n",
-        f"{PROMPT.format(json_schema=schema_str)}"
+        f"{PROMPT.replace("__JSON_SCHEMA__", schema_str)}"
     ]
 
     def __init__(self, model_id: str = "qwen3:8b"):

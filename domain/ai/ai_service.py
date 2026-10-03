@@ -3,7 +3,7 @@ from decimal import Decimal
 from agno.knowledge import Knowledge
 
 from domain.ai.conclusion_agent import ConclusionAgent
-from domain.ai.vectorstore import VectorstoreService
+from domain.ai.vectorstore import EventListResponse, VectorstoreService
 from domain.files.valuation_calculator import ValuationCalculator
 from domain.ai.valuation_agent import ValuationAgent
 
@@ -12,7 +12,7 @@ from communication.dtos import ValuationPredictionResponse
 class AiService:
     """Coordinates fund event extraction and conclusion generation."""
 
-    EXTRACTION_QUERY = (
+    EXTRACTION_PROMPT = (
         "Quais ações, decisões ou ocorrências NOVAS o fundo realizou ou sofreu especificamente "
         "no período coberto por este relatório gerencial -- por exemplo, compra ou venda de "
         "imóvel, renegociação ou rescisão de contrato de locação, emissão de cotas, mudança de "
@@ -32,11 +32,11 @@ class AiService:
         self._valuation_agent = valuation_agent
         self._valuation_calculator = valuation_calculator
 
-    def extract_events_from_fund(self, knowledge_db: Knowledge) -> list[dict]:
+    def extract_events_from_fund(self, knowledge_db: Knowledge) -> EventListResponse:
         """Extracts this month's events from the fund scoped knowledge."""
-        return self._vectorstore_service.extract_events_from_document(self.EXTRACTION_QUERY, knowledge_db)
+        return self._vectorstore_service.extract_events_from_document(self.EXTRACTION_PROMPT, knowledge_db)
 
-    def generate_conclusion(self, events: list[dict], ticker: str) -> str | None:
+    def generate_conclusion(self, events: EventListResponse, ticker: str) -> str | None:
         """Generates a short conclusion from already extracted events, enriched
         with market context (price, news and professional recommendations) fetched by ConclusionAgent."""
         return self._conclusion_agent.generate(events, ticker)

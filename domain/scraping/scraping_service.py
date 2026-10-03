@@ -123,7 +123,7 @@ class ScrapingService:
         )
 
     def search_last_report(self, ticker: str, asset_type: str) -> str:
-        """Returns PDFs links from announcements published in the last month.
+        """Returns PDF link from the las announcement published in the last month.
 
         Args:
         ticker: ticker from asset

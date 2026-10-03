@@ -63,10 +63,9 @@ class GenerateReportFiiUseCase:
         vector_db = self._vectorstore_service.build_vectorstore(ticker)
         knowledge = self._vectorstore_service.get_or_create_knowledge(vector_db, ticker)
 
-        for url in pdf_url:
-            url = url_redirect_resolver.execute(url)
-            if url:
-                self._vectorstore_service.insert_to_db(knowledge, url, ticker)
+        url = url_redirect_resolver.execute(pdf_url)
+        if url:
+            self._vectorstore_service.insert_to_db(knowledge, url, ticker)
 
         if not self._has_valid_cached_files(ticker):
             logger.error(f"Failed to locate valid downloaded PDFs for {ticker}.")

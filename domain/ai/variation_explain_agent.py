@@ -70,12 +70,12 @@ class VariationExplainAgent:
         self, ticker: str, year_month: str, knowledge_db: Knowledge | None = None
     ) -> str:
         """Retrieves context using vectorstore RAG or falls back to DDG Web Search."""
-        query = f"fatos relevantes motivo oscilacao rendimentos {ticker} {year_month}"
+        prompt = f"fatos relevantes motivo oscilacao rendimentos {ticker} {year_month}"
 
         context = ""
         if knowledge_db:
             try:
-                events = self._vectorstore_service.extract_events_from_document(query, knowledge_db)
+                events = self._vectorstore_service.extract_events_from_document(prompt, knowledge_db)
                 if events:
                     context = "\n".join([str(e) for e in events])
             except Exception as e:

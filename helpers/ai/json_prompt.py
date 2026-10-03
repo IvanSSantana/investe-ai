@@ -9,5 +9,5 @@ PROMPT = """
     4. Para campos numéricos/monetários, utilize apenas números em formato float (ex: 102.50). NUNCA inclua "R$", "%", vírgulas como separadores decimais ou aspas em valores numéricos.
 
     ESQUEMA JSON OBRIGATÓRIO:
-    {json_schema}
+    __JSON_SCHEMA__
 """

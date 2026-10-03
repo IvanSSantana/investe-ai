@@ -132,7 +132,7 @@ class VectorstoreService:
         "Saída esperada: {\"eventos\": []}",
         "Justificativa: nada acima é uma ação/decisão nova do período; é descrição estrutural "
         "do fundo e uma reunião de rotina sem consequência econômica relatada.",
-        f"{PROMPT.format(json_schema=schema_str)}"
+        f"{PROMPT.replace("__JSON_SCHEMA__", schema_str)}"
     ]
 
     def __init__(self, db_path: str = "./rag_db", md_cache_dir: str = "md_cache"):

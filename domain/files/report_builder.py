@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from communication.dtos import RealStateFundResponse
+from domain.ai.vectorstore import EventListResponse
 from domain.files.indicator_interpreter import interpret_indicators
 
 from helpers.typing.number_formatter import number_formatter
@@ -13,7 +14,7 @@ REPORTS_ROOT = Path("reports_db")
 
 def generate_markdown_report(
     fund: RealStateFundResponse,
-    events: list[dict[str, Any]],
+    events: EventListResponse,
     conclusion: str | None,
     template_path: str | Path = DEFAULT_TEMPLATE_PATH,
 ) -> str:
@@ -39,7 +40,7 @@ def save_markdown_report(markdown: str, ticker: str) -> Path:
 
 def _build_placeholders(
     fund: RealStateFundResponse,
-    events: list[dict[str, Any]],
+    events: EventListResponse,
     conclusion: str | None,
 ) -> dict[str, str]:
     return {
@@ -62,17 +63,19 @@ def _build_placeholders(
         "DATA": datetime.now().strftime("%d/%m/%Y"),
     }
 
-def _format_events_to_markdown(events: list[dict[str, Any]]) -> str:
+def _format_events_to_markdown(events: EventListResponse) -> str:
     """Formats extracted events as Markdown sections."""
     if not events:
         return "Nenhum evento relevante encontrado no período."
+
+    events_dict = events.model_dump()["eventos"]
 
     return "\n\n".join(
         f"### {event.get('titulo', '')}\n"
         f"{event.get('descricao', '')}\n\n"
         f"**Impacto no preço:** {event.get('impacto', '')}\n"
         f"**Importância:** {event.get('importancia', '')}"
-        for event in events
+        for event in events_dict
     )
 
 def _format_currency(value: Decimal | None) -> str:
