@@ -63,7 +63,7 @@ class PredictValuationFiiUseCase:
             indicators = raw_indicators
 
         current_price = Decimal(str(indicators.price))  
-        vp_per_share = Decimal(str(indicators.asset_value))
+        vp_per_share = Decimal(str(indicators.vp_per_share))
 
         pvp = Decimal(str(indicators.pvp))  
 
@@ -108,19 +108,17 @@ class PredictValuationFiiUseCase:
     def _serve_cached_prediction(self, cache_file: Path, ticker_upper: str) -> ValuationPredictionResponse:
         payload = json.loads(cache_file.read_text(encoding="utf-8"))
         prediction = ValuationPredictionResponse(**payload["prediction"])
-        vp_per_share = Decimal(str(payload.get("vp_per_share") or "0"))
 
-        return self._refresh_current_price(prediction, ticker_upper, vp_per_share)
+        return self._refresh_current_price(prediction, ticker_upper)
 
     def _refresh_current_price(
         self,
         prediction: ValuationPredictionResponse,
         ticker_upper: str,
-        vp_per_share: Decimal,
     ) -> ValuationPredictionResponse:
         """Updates only the price-derived numeric fields; LLM-generated texts stay frozen
         as of the generation date."""
-        raw_indicators = self._get_indicators_use_case.execute(ticker_upper)
+        raw_indicators = self._get_indicators_use_case.execute(ticker_upper, force_refresh=True)
 
         if isinstance(raw_indicators, dict):
             indicators = RealStateFundResponse(**raw_indicators)
@@ -134,8 +132,7 @@ class PredictValuationFiiUseCase:
         current_price = indicators.price
         prediction.preco_atual = round(current_price, 2)
 
-        if vp_per_share > 0:
-            prediction.pvp_atual = round(current_price / vp_per_share, 2)
+        prediction.pvp_atual = Decimal(str(indicators.pvp))  
 
         fair_mid_price = (
             prediction.medio_prazo.preco_justo_min + prediction.medio_prazo.preco_justo_max

@@ -41,6 +41,7 @@ class RealStateFundResponse(BaseModel):
     unitholders: Decimal | None = None
     price: Decimal | None = None
     pvp: Decimal | None = None
+    vp_per_share: Decimal | None = None
     value_variation_1m: Decimal | None = None
     value_variation_1y: Decimal | None = None
     dividend_yield: Decimal | None = None
