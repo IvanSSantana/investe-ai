@@ -1,7 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from decimal import Decimal
-
-from helpers.typing.price_sanitizer import price_sanitizer
+from decimal import Decimal, InvalidOperation
 
 def _sanitize_decimal_fields(*field_names: str):
     """Returns a Pydantic 'before' validator that sanitizes string-typed numeric
@@ -10,9 +8,13 @@ def _sanitize_decimal_fields(*field_names: str):
     @classmethod
     def _sanitize(cls, value):
         if isinstance(value, str):
-            return price_sanitizer(value)
+            cleaned = value.replace("R$", "").replace("%", "").strip()
+            try:
+                return Decimal(cleaned)
+            except InvalidOperation:
+                return value
         return value
-    
+
     return _sanitize
 
 class StockResponse(BaseModel):
