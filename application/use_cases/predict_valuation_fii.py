@@ -101,7 +101,7 @@ class PredictValuationFiiUseCase:
         )
 
         self._purge_old_caches(target_dir, today_str)
-        self._save_to_cache(cache_file, prediction, vp_per_share)
+        self._save_to_cache(cache_file, prediction)
 
         return prediction
 
@@ -152,12 +152,10 @@ class PredictValuationFiiUseCase:
         self,
         cache_file: Path,
         prediction: ValuationPredictionResponse,
-        vp_per_share: Decimal,
     ) -> None:
         payload = {
             "generated_at": datetime.now().isoformat(timespec="seconds"),
-            "vp_per_share": str(vp_per_share),
-            "prediction": prediction.model_dump(mode="json"),
+            "prediction": prediction.model_dump(mode="json")
         }
         cache_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         logger.info(f"Prediction cached at: {cache_file}")

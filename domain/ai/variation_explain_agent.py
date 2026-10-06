@@ -77,7 +77,7 @@ class VariationExplainAgent:
             try:
                 events = self._vectorstore_service.extract_events_from_document(prompt, knowledge_db)
                 if events:
-                    context = "\n".join([str(e) for e in events])
+                    context = "\n".join([str(e) for e in events.eventos])
             except Exception as e:
                 logger.warning(f"Failed to query vectorstore for {ticker} {year_month}: {e}")
 

@@ -1,7 +1,5 @@
 import logging
 import re
-from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -19,8 +17,5 @@ def execute(url: str) -> str | None:
         logger.warning(f"Fail while accessing {url}: timeout error.")
         return None
     
-    # response.raise_for_status()
-        # raise ScrapingError(f"Falha ao acessar a URL {url}: status code {response.status_code}")
-
     match = _JS_REDIRECT_PATTERN.search(response.text)
     return match.group(1) if match else None

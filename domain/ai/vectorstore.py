@@ -8,11 +8,10 @@ from agno.knowledge import Knowledge
 from agno.knowledge.embedder.ollama import OllamaEmbedder
 from agno.knowledge.reader.docling_reader import DoclingReader
 from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
 from agno.agent import Agent
-from agno.models.ollama import Ollama
 from agno.models.groq import Groq
 from pydantic import BaseModel, Field
 
@@ -222,7 +221,7 @@ class VectorstoreService:
         logger.info("File inserted successfully.")
 
     def extract_events_from_document(self, prompt: str, knowledge_db: Knowledge) -> EventListResponse:
-        """The extraction agent runs on a entire document."""
+        """The extraction agent runs on an entire document."""
         agent = Agent(
             role="Extrator de eventos corporativos",
             knowledge=knowledge_db,

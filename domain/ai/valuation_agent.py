@@ -18,12 +18,6 @@ logger = logging.getLogger(__name__)
 class ValuationAgent:
     """Agent responsible for fusing quantitative metrics, report RAG, and market web searches."""
 
-    schema_str = json.dumps(
-        ValuationPredictionResponse.model_json_schema(), 
-        ensure_ascii=False, 
-        indent=2
-    )
-
     VALUATION_INSTRUCTIONS = [
         "Você é um analista sênior de Fundos de Investimento Imobiliário (FIIs).",
         "Sua tarefa é sintetizar uma recomendação e predição de preço unificando dados quantitativos, relatórios gerenciais e notícias recentes.",
@@ -69,9 +63,6 @@ class ValuationAgent:
         - Retorne exclusivamente o objeto estruturado, sem explicações adicionais.
         """
     ]
-
-    def __init__(self, model_id: str = "qwen3:8b"):
-        self._model_id = model_id
 
     def run(
         self,

@@ -65,7 +65,7 @@ class ScrapingService:
         "vp_per_share": "Val. Patrimonial p/ Cota"
     }
 
-    REAL_STATE_TEXT_INDICATOR_FIELS: dict[str, str] = {
+    REAL_STATE_TEXT_INDICATOR_FIELDS: dict[str, str] = {
         "segment": "SEGMENTO",
         "type_fund": "TIPO DE FUNDO",
         "management_style": "TIPO DE GESTÃO"
@@ -141,7 +141,7 @@ class ScrapingService:
             if (link := self._extract_recent_pdf_link(card)) is not None
         ][0]
     
-    def extract_historical_mean_pvp(self, ticker: str) -> float:
+    def extract_historical_mean_pvp(self, ticker: str) -> Decimal:
         url = self.BASE_URL.format(type="fiis", ticker=ticker)
         soup = self._fetch_history_table_soup(url)
 
@@ -153,19 +153,19 @@ class ScrapingService:
                 indicator_td = row.find("td", class_="indicator")
                 if indicator_td and "P/VP" in indicator_td.text:
                     value_tds = row.find_all("td", class_="value")
-                    pvp_history: list[float] = []
+                    pvp_history: list[Decimal] = []
 
                     for td in value_tds:
                         text_val = td.text.strip().replace(",", ".")
                         try:
-                            val = float(text_val)
+                            val = Decimal(text_val)
                             pvp_history.append(val)
                         except ValueError:
                             logger.warning(f"Invalid P/VP value encountered: {text_val}. Skipping this value.")
                             continue
 
                     if pvp_history:
-                        mean_pvp = round(sum(pvp_history) / len(pvp_history), 2)
+                        mean_pvp = Decimal(str(round(sum(pvp_history) / len(pvp_history), 2)))
                         logger.info(
                             f"P/VP historic: {pvp_history} | Mean: {mean_pvp}"
                         )
@@ -174,11 +174,11 @@ class ScrapingService:
             logger.warning(
                 "Line with P/VP not found in the historical indicators table. Returning default value of 1.0."
             )
-            return 1.0
+            return Decimal("1.0")   
 
         except Exception as exc:
             logger.error(f"Error while extracting P/VP history: {exc}")
-            return 1.0
+            return Decimal("1.0")
 
     def _fetch_soup(self, url: str) -> BeautifulSoup:
         response = requests.get(url, headers=self.HEADERS)
@@ -198,7 +198,7 @@ class ScrapingService:
     def _extract_real_state_text_indicators(self, soup: BeautifulSoup) -> dict[str, str]:
         return {
             field: search_indicator_from_table(label, soup, self.REAL_STATE_TEXT_INDICATORS_TABLE_SELECTOR, ".name", ".value")
-            for field, label in self.REAL_STATE_TEXT_INDICATOR_FIELS.items()
+            for field, label in self.REAL_STATE_TEXT_INDICATOR_FIELDS.items()
         }
 
     def _extract_real_state_numeric_indicators(self, url: str) -> dict[str, Decimal | None]:
@@ -310,8 +310,6 @@ class ScrapingService:
             wait = WebDriverWait(driver, 20)
 
             button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
-
-            previous_text = driver.find_element(By.CSS_SELECTOR, "span.info-percentage").text
 
             button.click()
             wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, selector)))
