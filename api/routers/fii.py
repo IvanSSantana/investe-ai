@@ -3,16 +3,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import FileResponse
 
+from api.dependencies.auth import verify_api_key
 from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
-from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase
 from application.use_cases.send_email_report import SendEmailReport
-from application.use_cases.export_price_history_fii import ExportPriceHistoryFiiUseCase
 from application.use_cases.predict_valuation_fii import PredictValuationFiiUseCase
 from infrastructure.email_service import EmailService
 from communication.dtos import (
     SendReportEmailRequest,
     ScheduleReportRequest,
-    RealStateFundResponse,
     ValuationPredictionResponse
 )
 
@@ -20,19 +18,11 @@ from infrastructure.scheduler_service import SchedulerService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/fiis", tags=["fiis"])
+router = APIRouter(prefix="/api/v1/fiis", tags=["fiis"], dependencies=[Depends(verify_api_key)])
 
 def get_scheduler_service() -> SchedulerService:
     from api.main import scheduler_service
     return scheduler_service
-
-@router.get("/{ticker}/indicators", response_model=RealStateFundResponse)
-def get_indicators(
-    ticker: str,
-    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache diário e refaz o scraping"),
-):
-    use_case = GetIndicatorsFiiUseCase()
-    return use_case.execute(ticker=ticker, force_refresh=force_refresh)
 
 @router.get("/{ticker}/report")
 def get_report(
@@ -44,7 +34,7 @@ def get_report(
     if report_path is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No recent announcements found for {ticker} — unable to generate report.",
+            detail=f"Sem anúncios recentes encontrados para {ticker} — impossível gerar relatório.",
         )
 
     return FileResponse(path=report_path, media_type="text/markdown", filename=report_path.name)
@@ -60,17 +50,17 @@ def send_report_email(payload: SendReportEmailRequest) -> dict[str, str]:
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to send report email for {payload.ticker} to {payload.email_to}.",
+            detail=f"Não foi possível enviar o relatório por email do {payload.ticker} para {payload.email_to}.",
         )
 
-    return {"message": f"Report for {payload.ticker} sent successfully to {payload.email_to}."}
+    return {"message": f"Relatório para {payload.ticker} enviado com sucesso para {payload.email_to}."}
 
 @router.post("/schedule-email", response_model=dict[str, str])
 def schedule_monthly_email(
     payload: ScheduleReportRequest,
     scheduler: SchedulerService = Depends(get_scheduler_service),
 ) -> dict[str, str]:
-    """Schedules a recurring monthly task to generate and send the report by email."""
+    """Agenda a tarefa recorrente mensal para gerar e enviar o relatório por e-mail."""
     generate_use_case = GenerateReportFiiUseCase()
     email_service = EmailService()
     send_use_case = SendEmailReport(use_case=generate_use_case, email_service=email_service)
@@ -84,38 +74,8 @@ def schedule_monthly_email(
     )
 
     return {
-        "message": f"Monthly report for {payload.ticker} successfully scheduled for day {payload.day_of_month} at {payload.hour}:00."
+        "message": f"Relatório mensal para {payload.ticker} agendado com sucesso para o dia {payload.day_of_month} às {payload.hour}:00."
     }
-
-@router.get("/{ticker}/history/csv")
-def get_price_history_csv(
-    ticker: str,
-    include_explanation: bool = Query(
-        True, description="Se verdadeiro, insere explicações acerca das variações de preço acima de 2.5%"
-    ),
-    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache mensal e gera um novo CSV"),
-) -> FileResponse:
-    """
-    Generates and returns a CSV file containing 1-year monthly price variations,
-    total returns, and optional AI explanations for outlier months.
-    """
-    use_case = ExportPriceHistoryFiiUseCase()
-    try:
-        csv_path = use_case.execute(
-            ticker=ticker, 
-            include_explanation=include_explanation, 
-            force_refresh=force_refresh
-        )
-        return FileResponse(
-            path=csv_path,
-            media_type="text/csv",
-            filename=csv_path.name,
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
 
 @router.get(
     "/{ticker}/valuation-prediction",

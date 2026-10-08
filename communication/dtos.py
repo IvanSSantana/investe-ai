@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from decimal import Decimal, InvalidOperation
 
@@ -122,3 +124,14 @@ class QuantitativeValuationResult(BaseModel):
     _sanitize_values = _sanitize_decimal_fields(
         "ddm_fair_price", "pvp_mean_reversion_price", "annualized_dpu", "yield_spread_percent"
     )
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str = Field(..., description="Rótulo humano para identificar a finalidade da chave")
+    expires_at: datetime | None = Field(None, description="Data de expiração opcional da chave")
+ 
+class ApiKeyCreateResponse(BaseModel):
+    key_id: str
+    api_key: str = Field(..., description="Chave em texto plano — exibida apenas nesta resposta")
+    name: str
+    created_at: datetime
+    expires_at: datetime | None

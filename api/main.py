@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from api.routers import fii
+from api.routers import auth, fii, fii_public
 from communication.exceptions import NoDataForExportError, ScrapingError
 from infrastructure.scheduler_service import SchedulerService
 
@@ -24,7 +24,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Investe Aí API", lifespan=lifespan)
 
+app.include_router(fii_public.router)
 app.include_router(fii.router)
+app.include_router(auth.router)
 
 @app.exception_handler(ScrapingError)
 def handle_scraping_error(request: Request, exc: ScrapingError) -> JSONResponse:

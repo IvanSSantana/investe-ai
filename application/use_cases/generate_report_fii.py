@@ -28,7 +28,7 @@ class GenerateReportFiiUseCase:
         self._report_registry = report_registry
         self._get_indicators_use_case = get_indicators_use_case
 
-    def execute(self, ticker: str, force_refresh: bool = False) -> Path:
+    def execute(self, ticker: str, force_refresh: bool = False) -> Path | None:
         """
         Executes report generation or fetches from cache if valid.
         """
