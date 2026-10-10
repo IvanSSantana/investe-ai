@@ -22,9 +22,10 @@ class ValuationAgent:
         "Você é um analista sênior de Fundos de Investimento Imobiliário (FIIs).",
         "Sua tarefa é sintetizar uma recomendação e predição de preço unificando dados quantitativos, relatórios gerenciais e notícias recentes.",
         "Utilize a ferramenta de busca para encontrar notícias recentes sobre o fundo e a taxa Selic.",
-        "Sempre considere o preço justo calculado pelo DDM e pela reversão do P/VP como âncoras numéricas centrais.",
+        "A faixa de preço justo de 12 meses [preco_justo_min, preco_justo_max] e o upside/downside já vêm "
+        "calculados deterministicamente e serão fornecidos no prompt — NÃO os recalcule nem os contradiga; "
+        "escreva 'tendencia_12m' e 'tese_investimento' coerentes com essa faixa fornecida.",
         "Para a projeção de curto prazo (30 dias), analise a regularidade do dividendo e eventos iminentes (vacância, rescisão, venda de imóveis).",
-        "Para o médio prazo (12M), defina uma faixa de preço justo [min, max] baseada no P/VP de equilíbrio e DDM.",
         "NUNCA invente dividendos ou cotações que não estejam no contexto recebido.",
         "Retorne ESTRITAMENTE o JSON correspondente ao schema especificado.",
         "Siga SEMPRE o esquema a seguir: \n",
@@ -47,7 +48,7 @@ class ValuationAgent:
             "preco_justo_max": "Limite superior do preço justo em 12 meses (R$)",
             "upside_downside_percent": "Potencial de valorização ou desvalorização em %",
             "tendencia_12m": "Alta, Neutra ou Baixa",
-            "tese_investimento": "Síntese da tese baseada em valuation, DRE e mercado"
+            "tese_investimento": "Síntese da tese baseada na valuation, faixa de preço justo fornecida, DRE e mercado."
         },
 
         "sinal_recomendacao": "Compra Forte, Compra, Aguardar/Neutro ou Venda",
@@ -96,7 +97,9 @@ class ValuationAgent:
             f"- DPU Anualizado Estimado: R$ {quantitative_result.annualized_dpu}\n"
             f"- Preço Justo DDM (Desconto de Dividendos): R$ {quantitative_result.ddm_fair_price}\n"
             f"- Preço Teórico por Reversão P/VP: R$ {quantitative_result.pvp_mean_reversion_price}\n"
-            f"- Spread de Yield vs Taxa de Desconto: {quantitative_result.yield_spread_percent}%\n\n"
+            f"- Spread de Yield vs Taxa de Desconto: {quantitative_result.yield_spread_percent}%\n"
+            f"- Faixa de Preço Justo 12M: R$ {quantitative_result.preco_justo_min} a R$ {quantitative_result.preco_justo_max}\n"
+            f"- Potencial de Valorização/Desvalorização: {quantitative_result.upside_downside_percent}%\n\n"
             f"Instrução: Consulte o RAG do relatório gerencial do {ticker} e busque na web notícias recentes para concluir o schema."
         )
 

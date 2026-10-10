@@ -19,7 +19,9 @@ class ValuationCalculator:
         recent_dpus: list[Decimal],
         risk_free_rate: Decimal,
     ) -> QuantitativeValuationResult:
-        """Computes DDM Fair Price, P/VP Mean Reversion, and Yield Spread using a dynamic discount rate."""
+        """Computes DDM Fair Price, P/VP Mean Reversion, Yield Spread, the resulting
+        fair price range [min, max], and upside/downside vs. current price —
+        all deterministically, using a dynamic discount rate."""
         discount_rate = risk_free_rate + self._equity_risk_premium
         logger.info(f"Computing quantitative valuation with dynamic discount rate: {round(discount_rate * 100, 2)}%")
 
@@ -37,9 +39,20 @@ class ValuationCalculator:
         current_annual_yield = (annualized_dpu / current_price) if current_price > 0 else Decimal("0")
         yield_spread_percent = (current_annual_yield - discount_rate) * 100
 
+        preco_justo_min = min(ddm_fair_price, pvp_mean_reversion_price)
+        preco_justo_max = max(ddm_fair_price, pvp_mean_reversion_price)
+
+        fair_mid_price = (preco_justo_min + preco_justo_max) / 2
+        upside_downside_percent = (
+            ((fair_mid_price - current_price) / current_price) * 100 if current_price > 0 else Decimal("0")
+        )
+
         return QuantitativeValuationResult(
             ddm_fair_price=round(ddm_fair_price, 2),
             pvp_mean_reversion_price=round(pvp_mean_reversion_price, 2),
             annualized_dpu=round(annualized_dpu, 2),
             yield_spread_percent=round(yield_spread_percent, 2),
+            preco_justo_min=round(preco_justo_min, 2),
+            preco_justo_max=round(preco_justo_max, 2),
+            upside_downside_percent=round(upside_downside_percent, 2),
         )

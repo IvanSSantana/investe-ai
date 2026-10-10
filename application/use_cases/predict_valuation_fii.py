@@ -134,15 +134,6 @@ class PredictValuationFiiUseCase:
 
         prediction.pvp_atual = Decimal(str(indicators.pvp))  
 
-        fair_mid_price = (
-            prediction.medio_prazo.preco_justo_min + prediction.medio_prazo.preco_justo_max
-        ) / 2
-
-        if current_price > 0:
-            prediction.medio_prazo.upside_downside_percent = round(
-                ((fair_mid_price - current_price) / current_price) * 100, 2
-            )
-
         logger.info(
             f"Cached prediction for {ticker_upper} refreshed with current price: R$ {current_price}"
         )

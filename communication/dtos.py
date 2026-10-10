@@ -120,9 +120,13 @@ class QuantitativeValuationResult(BaseModel):
     pvp_mean_reversion_price: Decimal
     annualized_dpu: Decimal
     yield_spread_percent: Decimal
+    preco_justo_min: Decimal
+    preco_justo_max: Decimal
+    upside_downside_percent: Decimal
 
     _sanitize_values = _sanitize_decimal_fields(
-        "ddm_fair_price", "pvp_mean_reversion_price", "annualized_dpu", "yield_spread_percent"
+        "ddm_fair_price", "pvp_mean_reversion_price", "annualized_dpu", "yield_spread_percent",
+        "preco_justo_min", "preco_justo_max", "upside_downside_percent"
     )
 
 class ApiKeyCreateRequest(BaseModel):
