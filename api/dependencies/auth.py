@@ -28,7 +28,7 @@ def _is_valid(record: ApiKeyRecord | None) -> bool:
     return True
 
 def verify_api_key(api_key: str | None = Security(_api_key_header)) -> None:
-    """Bloqueia a requisição a menos que uma chave de API válida, ativa e não expirada seja fornecida."""
+    """Blocks the request unless a valid, active, and non-expired API key is provided."""
     record = _repository.find_by_hash(hash_api_key(api_key)) if api_key else None
 
     if not _is_valid(record):
@@ -38,7 +38,7 @@ def verify_api_key(api_key: str | None = Security(_api_key_header)) -> None:
         )
 
 def optional_api_key(api_key: str | None = Security(_api_key_header)) -> bool:
-    """Nunca lança exceção. Retorna True se uma chave de API válida, ativa e não expirada foi fornecida."""
+    """Never raises an exception. Returns True if a valid, active, and non-expired API key was provided."""
     if not api_key:
         return False
 
@@ -46,7 +46,7 @@ def optional_api_key(api_key: str | None = Security(_api_key_header)) -> bool:
     return _is_valid(record)
 
 def verify_admin_key(admin_key: str | None = Security(_admin_key_header)) -> None:
-    """Bloqueia a requisição a menos que a chave de administrador (variável de ambiente ADMIN_API_KEY) seja fornecida."""
+    """Blocks the request unless the administrator key (environment variable ADMIN_API_KEY) is provided."""
     expected = os.getenv("ADMIN_API_KEY")
 
     if not expected or not admin_key or not hmac.compare_digest(admin_key, expected):
