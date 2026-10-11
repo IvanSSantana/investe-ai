@@ -61,12 +61,7 @@ def schedule_monthly_email(
     scheduler: SchedulerService = Depends(get_scheduler_service),
 ) -> dict[str, str]:
     """Agenda a tarefa recorrente mensal para gerar e enviar o relatório por e-mail."""
-    generate_use_case = GenerateReportFiiUseCase()
-    email_service = EmailService()
-    send_use_case = SendEmailReport(use_case=generate_use_case, email_service=email_service)
-
     scheduler.add_monthly_email_job(
-        func=send_use_case.execute,
         ticker=payload.ticker,
         email_to=payload.email_to,
         day_of_month=payload.day_of_month,

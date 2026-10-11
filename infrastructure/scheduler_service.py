@@ -1,13 +1,20 @@
 import logging
+from zoneinfo import ZoneInfo  
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from zoneinfo import ZoneInfo  
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+
+from infrastructure.scheduled_jobs import run_monthly_email_job
 
 logger = logging.getLogger(__name__)
 
+JOBS_DB_PATH = "scheduler_jobs.db"
+
 class SchedulerService:
     def __init__(self):
-        self.scheduler = AsyncIOScheduler()
+        jobstores = {"default": SQLAlchemyJobStore(url=f"sqlite:///{JOBS_DB_PATH}")}
+        self.scheduler = AsyncIOScheduler(jobstores=jobstores)
 
     def start(self):
         if not self.scheduler.running:
@@ -21,7 +28,6 @@ class SchedulerService:
 
     def add_monthly_email_job(
             self, 
-            func, 
             ticker: str, 
             email_to: str, 
             day_of_month: int = 1, 
@@ -32,7 +38,7 @@ class SchedulerService:
         trigger = CronTrigger(day=day_of_month, hour=hour, minute=0, timezone=ZoneInfo("America/Sao_Paulo"))
 
         self.scheduler.add_job(
-            func,
+            run_monthly_email_job,
             trigger=trigger,
             args=[ticker, email_to],
             id=job_id,
