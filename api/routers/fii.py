@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import FileResponse
 
-from api.dependencies.auth import verify_api_key
+from api.dependencies.auth import verify_api_key, verify_api_key_or_session
 from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
 from application.use_cases.send_email_report import SendEmailReport
 from application.use_cases.predict_valuation_fii import PredictValuationFiiUseCase
@@ -59,13 +59,17 @@ def send_report_email(payload: SendReportEmailRequest) -> dict[str, str]:
 def schedule_monthly_email(
     payload: ScheduleReportRequest,
     scheduler: SchedulerService = Depends(get_scheduler_service),
+    authenticated_user_id: str = Depends(verify_api_key_or_session),
 ) -> dict[str, str]:
-    """Agenda a tarefa recorrente mensal para gerar e enviar o relatório por e-mail."""
+    """Agenda a tarefa recorrente mensal para gerar e enviar o relatório por e-mail.
+    O agendamento fica associado ao usuário autenticado (quando autenticado via sessão)
+    para fins de histórico, em /auth/me/schedules."""
     scheduler.add_monthly_email_job(
         ticker=payload.ticker,
         email_to=payload.email_to,
         day_of_month=payload.day_of_month,
         hour=payload.hour,
+        user_id=authenticated_user_id,
     )
 
     return {

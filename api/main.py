@@ -27,6 +27,7 @@ app = FastAPI(title="Investe Aí API", lifespan=lifespan)
 app.include_router(fii_public.router)
 app.include_router(fii.router)
 app.include_router(auth.router)
+app.include_router(auth.admin_router)
 
 @app.exception_handler(ScrapingError)
 def handle_scraping_error(request: Request, exc: ScrapingError) -> JSONResponse:

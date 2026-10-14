@@ -12,11 +12,9 @@ class ApiKeyRecord(NamedTuple):
     created_at: datetime
     expires_at: datetime | None
     active: bool
+    user_id: str | None
 
 class ApiKeyRepository:
-    """Persists and queries API keys in a local SQLite database.
-    """
-
     def __init__(self, db_path: Path = DB_PATH):
         self._db_path = db_path
         self._ensure_schema()
@@ -27,16 +25,17 @@ class ApiKeyRepository:
         key_hash: str,
         name: str,
         expires_at: datetime | None,
+        user_id: str | None = None,
     ) -> ApiKeyRecord:
         created_at = datetime.now()
 
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO api_keys (key_id, key_hash, name, created_at, expires_at, active)
-                VALUES (?, ?, ?, ?, ?, 1)
+                INSERT INTO api_keys (key_id, key_hash, name, created_at, expires_at, active, user_id)
+                VALUES (?, ?, ?, ?, ?, 1, ?)
                 """,
-                (key_id, key_hash, name, created_at.isoformat(), expires_at.isoformat() if expires_at else None),
+                (key_id, key_hash, name, created_at.isoformat(), expires_at.isoformat() if expires_at else None, user_id),
             )
 
         return ApiKeyRecord(
@@ -46,13 +45,23 @@ class ApiKeyRepository:
             created_at=created_at,
             expires_at=expires_at,
             active=True,
+            user_id=user_id,
         )
 
     def find_by_hash(self, key_hash: str) -> ApiKeyRecord | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT key_id, key_hash, name, created_at, expires_at, active FROM api_keys WHERE key_hash = ?",
+                "SELECT key_id, key_hash, name, created_at, expires_at, active, user_id FROM api_keys WHERE key_hash = ?",
                 (key_hash,),
+            ).fetchone()
+
+        return self._row_to_record(row) if row else None
+
+    def find_by_key_id(self, key_id: str) -> ApiKeyRecord | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT key_id, key_hash, name, created_at, expires_at, active, user_id FROM api_keys WHERE key_id = ?",
+                (key_id,),
             ).fetchone()
 
         return self._row_to_record(row) if row else None
@@ -82,15 +91,20 @@ class ApiKeyRepository:
                     name TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     expires_at TEXT,
-                    active INTEGER NOT NULL DEFAULT 1
+                    active INTEGER NOT NULL DEFAULT 1,
+                    user_id TEXT
                 )
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)")
 
+            existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(api_keys)").fetchall()}
+            if "user_id" not in existing_columns:
+                conn.execute("ALTER TABLE api_keys ADD COLUMN user_id TEXT")
+
     @staticmethod
     def _row_to_record(row: tuple) -> ApiKeyRecord:
-        key_id, key_hash, name, created_at, expires_at, active = row
+        key_id, key_hash, name, created_at, expires_at, active, user_id = row
         return ApiKeyRecord(
             key_id=key_id,
             key_hash=key_hash,
@@ -98,4 +112,5 @@ class ApiKeyRepository:
             created_at=datetime.fromisoformat(created_at),
             expires_at=datetime.fromisoformat(expires_at) if expires_at else None,
             active=bool(active),
+            user_id=user_id,
         )

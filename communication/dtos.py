@@ -139,3 +139,16 @@ class ApiKeyCreateResponse(BaseModel):
     name: str
     created_at: datetime
     expires_at: datetime | None
+
+class UserRegisterRequest(BaseModel):
+    email: EmailStr = Field(..., description="E-mail do usuário, usado como identificador de login")
+    password: str = Field(..., min_length=8, description="Senha em texto plano, mínimo 8 caracteres")
+
+class UserLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    user_id: str
+    email: str
+    created_at: datetime
