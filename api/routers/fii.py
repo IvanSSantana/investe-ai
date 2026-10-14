@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import FileResponse
 
-from api.dependencies.auth import verify_api_key, verify_api_key_or_session
+from api.dependencies.auth import verify_api_key_or_session
 from application.use_cases.generate_report_fii import GenerateReportFiiUseCase
 from application.use_cases.send_email_report import SendEmailReport
 from application.use_cases.predict_valuation_fii import PredictValuationFiiUseCase
@@ -18,7 +18,7 @@ from infrastructure.scheduler_service import SchedulerService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/fiis", tags=["fiis"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/api/v1/fiis", tags=["fiis"], dependencies=[Depends(verify_api_key_or_session)])
 
 def get_scheduler_service() -> SchedulerService:
     from api.main import scheduler_service
