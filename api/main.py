@@ -1,9 +1,10 @@
+import os
 import logging
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import auth, fii, fii_public
 from communication.exceptions import NoDataForExportError, ScrapingError
@@ -11,6 +12,8 @@ from infrastructure.scheduler_service import SchedulerService
 
 from dotenv import load_dotenv
 load_dotenv()
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,6 +26,14 @@ async def lifespan(app: FastAPI):
     scheduler_service.shutdown()
 
 app = FastAPI(title="Investe Aí API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(fii_public.router)
 app.include_router(fii.router)

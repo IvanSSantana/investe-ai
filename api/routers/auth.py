@@ -1,5 +1,6 @@
 import logging
 from uuid import uuid4
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
@@ -27,7 +28,15 @@ admin_router = APIRouter(
     dependencies=[Depends(verify_admin_key)],
 )
 
-SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60  
+SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 # 7 days in seconds
+
+def _cookie_secure() -> bool:
+    """Em produção, o cookie DEVE ser Secure (HTTPS only).
+    Em dev local (http://localhost:5173), o navegador descarta cookies Secure,
+    então permitimos desligar via SESSION_COOKIE_SECURE=false."""
+    return os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true"
+
+SESSION_COOKIE_SECURE = _cookie_secure()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: UserRegisterRequest) -> UserResponse:
@@ -68,7 +77,7 @@ def login(payload: UserLoginRequest, response: Response) -> UserResponse:
         key="session",
         value=session.session_token,
         httponly=True,
-        secure=True,
+        secure=SESSION_COOKIE_SECURE,
         samesite="strict",
         max_age=SESSION_COOKIE_MAX_AGE,
         path="/",
