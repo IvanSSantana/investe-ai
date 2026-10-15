@@ -4,7 +4,8 @@ from pathlib import Path
 
 from domain.ai.ai_service import AiService
 from domain.ai.vectorstore import VectorstoreService
-from domain.files import report_builder, url_redirect_resolver
+from domain.files import report_builder
+from domain.files import url_redirect_resolver
 from domain.scraping.scraping_service import ScrapingService
 from repository.report_registry import ReportRegistry
 from application.use_cases.get_indicators_fii import GetIndicatorsFiiUseCase

@@ -6,7 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import auth, fii, fii_public
+from api.routers import fii_public
+from api.routers import auth, fii
 from communication.exceptions import NoDataForExportError, ScrapingError
 from infrastructure.scheduler_service import SchedulerService
 

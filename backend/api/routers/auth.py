@@ -31,9 +31,6 @@ admin_router = APIRouter(
 SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 # 7 days in seconds
 
 def _cookie_secure() -> bool:
-    """Em produção, o cookie DEVE ser Secure (HTTPS only).
-    Em dev local (http://localhost:5173), o navegador descarta cookies Secure,
-    então permitimos desligar via SESSION_COOKIE_SECURE=false."""
     return os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true"
 
 SESSION_COOKIE_SECURE = _cookie_secure()
