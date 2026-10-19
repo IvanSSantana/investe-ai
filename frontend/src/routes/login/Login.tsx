@@ -1,5 +1,5 @@
 import { useState, type SubmitEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLogin } from "../../queries/useAuth";
 import { ApiError } from "../../api/client";
 
@@ -33,6 +33,7 @@ export default function Login() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
+        autoComplete="email"
       />
       <input
         type="password"
@@ -44,7 +45,13 @@ export default function Login() {
       <button type="submit" disabled={loginMutation.isPending}>
         {loginMutation.isPending ? "Entrando…" : "Entrar"}
       </button>
+      
       {errorMessage && <p style={{ color: "crimson" }}>{errorMessage}</p>}
+
+      <p style={{ fontSize: 14, marginTop: 16 }}>
+        Não tem uma conta?{" "}
+        <Link to="/register">Criar conta</Link>
+      </p>
     </form>
   );
 }
