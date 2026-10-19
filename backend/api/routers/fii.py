@@ -55,7 +55,7 @@ def send_report_email(payload: SendReportEmailRequest) -> dict[str, str]:
 
     return {"message": f"Relatório para {payload.ticker} enviado com sucesso para {payload.email_to}."}
 
-@router.post("/schedule-email", response_model=dict[str, str])
+@router.post("/schedules", response_model=dict[str, str])
 def schedule_monthly_email(
     payload: ScheduleReportRequest,
     scheduler: SchedulerService = Depends(get_scheduler_service),
@@ -75,6 +75,21 @@ def schedule_monthly_email(
     return {
         "message": f"Relatório mensal para {payload.ticker} agendado com sucesso para o dia {payload.day_of_month} às {payload.hour}:00."
     }
+
+@router.delete("/schedules/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_scheduled_email(
+    job_id: str,
+    scheduler: SchedulerService = Depends(get_scheduler_service),
+    authenticated_user_id: str = Depends(verify_api_key_or_session),
+) -> None:
+    """Cancela um agendamento de relatório mensal pertencente ao usuário autenticado."""
+    removed = scheduler.remove_job(job_id, user_id=authenticated_user_id)
+
+    if not removed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agendamento '{job_id}' não encontrado para este usuário.",
+        )
 
 @router.get(
     "/{ticker}/valuation-prediction",

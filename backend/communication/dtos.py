@@ -140,6 +140,21 @@ class ApiKeyCreateResponse(BaseModel):
     created_at: datetime
     expires_at: datetime | None
 
+class ApiKeyListItemResponse(BaseModel):
+    key_id: str
+    name: str
+    created_at: datetime
+    expires_at: datetime | None
+    active: bool
+
+class ScheduledJobResponse(BaseModel):
+    job_id: str
+    ticker: str
+    email_to: str
+    day_of_month: int
+    hour: int
+    created_at: datetime
+
 class UserRegisterRequest(BaseModel):
     email: EmailStr = Field(..., description="E-mail do usuário, usado como identificador de login")
     password: str = Field(..., min_length=8, description="Senha em texto plano, mínimo 8 caracteres")

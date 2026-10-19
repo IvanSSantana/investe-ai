@@ -57,6 +57,18 @@ class ApiKeyRepository:
 
         return self._row_to_record(row) if row else None
 
+    def list_by_user(self, user_id: str) -> list[ApiKeyRecord]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT key_id, key_hash, name, created_at, expires_at, active, user_id
+                FROM api_keys WHERE user_id = ? ORDER BY created_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+
+        return [self._row_to_record(row) for row in rows]
+
     def find_by_key_id(self, key_id: str) -> ApiKeyRecord | None:
         with self._connect() as conn:
             row = conn.execute(

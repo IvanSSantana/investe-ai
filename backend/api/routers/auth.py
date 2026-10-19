@@ -8,6 +8,8 @@ from api.dependencies.auth import verify_admin_key, verify_session
 from communication.dtos import (
     ApiKeyCreateRequest,
     ApiKeyCreateResponse,
+    ApiKeyListItemResponse,
+    ScheduledJobResponse,
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
@@ -101,6 +103,25 @@ def get_current_user(session_record: SessionRecord = Depends(verify_session)) ->
 
     return UserResponse(user_id=user.user_id, email=user.email, created_at=user.created_at)
 
+@router.get("/me/schedules", response_model=list[ScheduledJobResponse])
+def list_own_schedules(session_record: SessionRecord = Depends(verify_session)) -> list[ScheduledJobResponse]:
+    """Lista os agendamentos de relatório mensal criados pelo usuário autenticado."""
+    from api.main import scheduler_service # Impede problema de importação circular
+
+    records = scheduler_service.list_jobs_by_user(session_record.user_id)
+
+    return [
+        ScheduledJobResponse(
+            job_id=record.job_id,
+            ticker=record.ticker,
+            email_to=record.email_to,
+            day_of_month=record.day_of_month,
+            hour=record.hour,
+            created_at=record.created_at,
+        )
+        for record in records
+    ]
+
 
 @router.post("/keys", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_own_api_key(
@@ -128,6 +149,22 @@ def create_own_api_key(
         created_at=record.created_at,
         expires_at=record.expires_at,
     )
+
+@router.get("/keys", response_model=list[ApiKeyListItemResponse])
+def list_own_api_keys(session_record: SessionRecord = Depends(verify_session)) -> list[ApiKeyListItemResponse]:
+    """Lista as chaves de API pertencentes ao usuário autenticado."""
+    records = ApiKeyRepository().list_by_user(session_record.user_id)
+
+    return [
+        ApiKeyListItemResponse(
+            key_id=record.key_id,
+            name=record.name,
+            created_at=record.created_at,
+            expires_at=record.expires_at,
+            active=record.active,
+        )
+        for record in records
+    ]
 
 @router.delete("/keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_own_api_key(key_id: str, session_record: SessionRecord = Depends(verify_session)) -> None:

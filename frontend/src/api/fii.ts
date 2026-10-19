@@ -28,7 +28,7 @@ export const sendReportEmail = (payload: SendReportEmailRequest) =>
   });
 
 export const scheduleEmail = (payload: ScheduleReportRequest) =>
-  apiClient<{ message: string }>("/api/v1/fiis/schedule-email", {
+  apiClient<{ message: string }>("/api/v1/fiis/schedules", {
     method: "POST",
     body: payload,
   });
