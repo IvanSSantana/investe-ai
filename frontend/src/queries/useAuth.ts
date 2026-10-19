@@ -13,7 +13,9 @@ export function useLogin() {
 export function useRegister() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: RegisterRequest) => register(payload),
+    mutationFn: (payload: RegisterRequest) => {
+      return register(payload).then(() => login(payload));
+    },
     onSuccess: (user) => queryClient.setQueryData(["me"], user),
   });
 }
