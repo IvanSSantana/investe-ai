@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   downloadReport,
   getIndicators,
@@ -31,8 +31,10 @@ export function useSendReportEmail() {
 }
 
 export function useScheduleEmail() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ScheduleReportRequest) => scheduleEmail(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedules"] }),
   });
 }
 
