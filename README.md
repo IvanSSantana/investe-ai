@@ -82,7 +82,7 @@ Todos os valores monetários e percentuais (preços, P/VP, dividendos, taxas) tr
 
 - `indicators_cache/`: diário, por ticker.
 - `md_cache/`: Markdown já convertido do PDF (evita reprocessar o mesmo relatório via Docling).
-- `csv_cache/`: mensal, separado por `include_explanation` (`_explained` vs `_raw`).
+- `price_history_cache/`: mensal, separado por `include_explanation` (`_explained` vs `_raw`).
 - `prediction_cache/`: mensal, por ticker.
 - `reports_db/registry.json`: índice de qual PDF gerou o último relatório de cada ticker (evita regenerar se a fonte não mudou).
 

@@ -10,7 +10,7 @@ class CSVExporter:
         self, ticker: str, 
         summaries: list[dict[str, Any]], 
         filename: str, 
-        output_dir: str = "csv_cache"
+        output_dir: str = "price_history_cache"
     ) -> Path:
         """
         Exports monthly financial summaries to a CSV file including explanations.

@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status, Depends
 from fastapi.responses import FileResponse
@@ -20,42 +21,36 @@ def get_indicators(
     use_case = GetIndicatorsFiiUseCase()
     return use_case.execute(ticker=ticker, force_refresh=force_refresh)
 
-
-@router.get("/{ticker}/history/csv")
-def get_price_history_csv(
+@router.get("/{ticker}/history", response_model=list[dict[str, Any]])
+def get_price_history(
     ticker: str,
-    include_explanation: bool = Query(
-        True, description="Se verdadeiro, insere explicações acerca das variações de preço acima de 2.5%"
+    output_type: Literal["csv", "json"] = Query(
+        "json", description="'json' (period=5y) ou 'csv' (period=1y)."
     ),
-    force_refresh: bool = Query(False, description="Se verdadeiro, ignora o cache mensal e gera um novo CSV"),
+    include_explanation: bool = Query(True),
+    force_refresh: bool = Query(False),
     has_valid_api_key: bool = Depends(optional_api_key),
-) -> FileResponse:
-    """
-    Gera e retorna um arquivo CSV contendo as variações mensais de preço ao longo de um ano,
-    os retornos totais e explicações opcionais de IA para meses com valores atípicos.
-
-    Esta rota é pública. O parâmetro `include_explanation` só tem efeito
-    quando uma chave de API válida é enviada no cabeçalho `X-API-Key`; caso contrário,
-    a explicação gerada por IA é omitida automaticamente.
-    """
-    effective_include_explanation = include_explanation and has_valid_api_key
-
+) -> Any:
+    effective_include_explanation = include_explanation and has_valid_api_key and output_type != "json"
     use_case = ExportPriceHistoryFiiUseCase()
+
     try:
-        csv_path = use_case.execute(
+        result = use_case.execute(
             ticker=ticker,
             include_explanation=effective_include_explanation,
-            force_refresh=force_refresh
+            force_refresh=force_refresh,
+            output_type=output_type,
         )
-
-        return FileResponse(
-            path=csv_path,
-            media_type="text/csv",
-            filename=csv_path.name,
-        )
-    
-    except ValueError as e:
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Histórico de preços para {ticker} não encontrado.",
         )
+
+    if output_type == "csv":
+        return FileResponse(
+            path=result,  # type: ignore[arg-type]
+            media_type="text/csv",
+            filename=Path(result).name,  # type: ignore[arg-type]
+        )
+    return result
