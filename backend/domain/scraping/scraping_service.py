@@ -133,8 +133,8 @@ class ScrapingService:
         url = self.BASE_URL.format(type=asset_type, ticker=ticker)
         soup = self._fetch_soup(url)
 
-        pdfs_area = search_one_element_verifier(soup, "section#communications-section div.content div.row")
-        cards = pdfs_area.select("div.col-12 div.communication-card")
+        pdfs_area = search_one_element_verifier(soup, "section#communications-section div.content div.communications-list")
+        cards = pdfs_area.select("div.communication-card")
 
         return [
             link for card in cards

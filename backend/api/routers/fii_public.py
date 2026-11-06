@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status, Depends
@@ -49,8 +50,8 @@ def get_price_history(
 
     if output_type == "csv":
         return FileResponse(
-            path=result,  # type: ignore[arg-type]
+            path=result,   # type: ignore
             media_type="text/csv",
-            filename=Path(result).name,  # type: ignore[arg-type]
+            filename=Path(result).name,   # type: ignore
         )
     return result
